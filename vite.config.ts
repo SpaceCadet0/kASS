@@ -17,6 +17,10 @@ function figmaAssetResolver() {
 }
 
 export default defineConfig({
+  // Served from https://spacecadet0.github.io/kASS/ (a project page, not a
+  // custom domain), so every asset URL needs this prefix in the production
+  // build or they 404 against the site root.
+  base: '/kASS/',
   plugins: [
     figmaAssetResolver(),
     // The React and Tailwind plugins are both required for Make, even if
