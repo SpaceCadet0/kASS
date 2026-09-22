@@ -11,14 +11,13 @@ import svgReg from "@/imports/РегистрацияГостя-1/svg-2ne1v20uh3"
 import svgNewData from "@/imports/НовыеДанные/svg-49bwdoakjj";
 import svgCard from "@/imports/СчитатьКарту/svg-lwbgswx1qv";
 import svgClientInfo from "@/imports/СРегистрацией/svg-3jfmc2efvu";
-import imgQR from "@/imports/1/4d69aa6756d179e7616a13220d1be3c3fedfc37a.png";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Screen = "login-password" | "login-pin" | "select-installation" | "settings" | "pos";
 
-interface CartItem { id: number; productId: number; name: string; price: number; }
-interface Product  { id: number; name: string; price: number; bg: string; }
+interface CartItem { id: number; productId: number; name: string; price: number; guestName?: string; }
+interface Product  { id: number; name: string; price: number; bg: string; priceLabel?: string; }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -35,6 +34,11 @@ const PRODUCTS: Product[] = [
   { id: 10, name: "Пакет на колесо",                price: 250, bg: "#ffffff" },
   { id: 11, name: "Грандиозная непаровая карусель", price: 250, bg: "#ffffff" },
   { id: 12, name: "Грандиозная непаровая карусель", price: 250, bg: "#ffffff" },
+];
+
+const ACCOUNT_CARDS: Product[] = [
+  { id: 101, name: "Бонусы",  price: 0,   bg: "#ffffff" },
+  { id: 102, name: "Депозит", price: 250, bg: "#ffffff", priceLabel: "от 250 ₽" },
 ];
 
 const INSTALLATIONS = [
@@ -82,13 +86,56 @@ function IconLogo() {
   );
 }
 
-function IconUserPlus() {
+function IconUserPlus({ color = "white" }: { color?: string }) {
   return (
     <svg fill="none" viewBox="0 0 24 24" className="size-6">
-      <path d={svgPos.p3f80dc40} stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-      <path d={svgPos.p1280af80} stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-      <path d="M20 8V14"  stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-      <path d="M23 11H17" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      <path d={svgPos.p3f80dc40} stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      <path d={svgPos.p1280af80} stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      <path d="M20 8V14"  stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      <path d="M23 11H17" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function IconHome({ color = "white" }: { color?: string }) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" className="size-6">
+      <path d="M4 11.5L12 4L20 11.5" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      <path d="M6 9.5V19C6 19.5523 6.44772 20 7 20H17C17.5523 20 18 19.5523 18 19V9.5" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      <path d="M10 20V15C10 14.4477 10.4477 14 11 14H13C13.5523 14 14 14.4477 14 15V20" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function IconMenu({ color = "white" }: { color?: string }) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" className="size-6">
+      <path d="M5 6H19"  stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+      <path d="M5 11H19" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+      <path d="M5 16H19" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+      <path d="M5 21H19" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+    </svg>
+  );
+}
+
+function IconTrash({ color = "#303030" }: { color?: string }) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" className="size-5">
+      <path d="M3 6H21" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      <path d="M8 6V4C8 3.44772 8.44772 3 9 3H15C15.5523 3 16 3.44772 16 4V6" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      <path d="M19 6L18.133 19.142C18.0579 20.1891 17.187 21 16.137 21H7.863C6.813 21 5.9421 20.1891 5.867 19.142L5 6" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      <path d="M10 11V16" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      <path d="M14 11V16" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function IconWarning({ color = "#F95B1C" }: { color?: string }) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" className="size-[18px] shrink-0">
+      <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="2" />
+      <path d="M12 10.5V16" stroke={color} strokeLinecap="round" strokeWidth="2" />
+      <circle cx="12" cy="7.5" r="1.15" fill={color} />
     </svg>
   );
 }
@@ -212,7 +259,7 @@ function AdminToggle({ on, onToggle, dark }: { on: boolean; onToggle: () => void
 
 // ─── Dark Theme Toggle ────────────────────────────────────────────────────────
 
-function DarkToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void }) {
+function RequireRegistrationToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
     <button
       onClick={onToggle}
@@ -221,19 +268,19 @@ function DarkToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void })
     >
       <div
         className="relative shrink-0 transition-colors duration-200"
-        style={{ width: 40.6, height: 24, borderRadius: 17.5, backgroundColor: dark ? "#47d465" : "#a4a4a4" }}
+        style={{ width: 40.6, height: 24, borderRadius: 17.5, backgroundColor: on ? "#47d465" : "#a4a4a4" }}
       >
         <div
           className="absolute transition-all duration-200"
           style={{
             top: "11.54%", bottom: "11.54%", width: "45.36%",
             borderRadius: "50%", backgroundColor: "white",
-            left: dark ? "47.73%" : "8.9%",
+            left: on ? "47.73%" : "8.9%",
           }}
         />
       </div>
-      <span className="text-[16px] font-normal whitespace-nowrap" style={{ color: dark ? "#ffffff" : "#252422" }}>
-        Темная тема
+      <span className="text-[16px] font-normal whitespace-nowrap" style={{ color: "#252422" }}>
+        Обязательная регистрация
       </span>
     </button>
   );
@@ -418,8 +465,8 @@ function SelectInstallationScreen({ onOk, onCancel, dark }: { onOk: () => void; 
 
 // ─── Settings Screen ──────────────────────────────────────────────────────────
 
-function SettingsScreen({ dark, onDarkToggle, onSave, onBack }: {
-  dark: boolean; onDarkToggle: () => void; onSave: () => void; onBack: () => void;
+function SettingsScreen({ dark, requireRegistration, onToggleRequireRegistration, onSave, onBack }: {
+  dark: boolean; requireRegistration: boolean; onToggleRequireRegistration: () => void; onSave: () => void; onBack: () => void;
 }) {
   const [kassa, setKassa] = useState("");
   const [dropOpen, setDropOpen] = useState(false);
@@ -454,7 +501,7 @@ function SettingsScreen({ dark, onDarkToggle, onSave, onBack }: {
         style={{ left: 166, top: 131, width: 1108, height: 762, backgroundColor: c.cardBg }}>
         <p className="absolute text-[24px] font-bold top-[50px] left-[154px]" style={{ color: c.textPrimary }}>Окно настроек</p>
         <div className="absolute" style={{ left: 788, top: 51 }}>
-          <DarkToggle dark={dark} onToggle={onDarkToggle} />
+          <RequireRegistrationToggle on={requireRegistration} onToggle={onToggleRequireRegistration} />
         </div>
         <div className="absolute flex flex-col gap-6" style={{ left: 154, top: 106, width: 787 }}>
           <div className="flex flex-col gap-[6px]">
@@ -528,22 +575,50 @@ function SettingsScreen({ dark, onDarkToggle, onSave, onBack }: {
 
 // ─── POS Sub-components ───────────────────────────────────────────────────────
 
-function LeftSidebar({ dark, adminMode, onLogout, onUserPlus }: { dark: boolean; adminMode: boolean; onLogout: () => void; onUserPlus: () => void }) {
+function LeftSidebar({ dark, adminMode, onLogout, onUserPlus, onMenu, onHome, homeActive }: {
+  dark: boolean; adminMode: boolean; onLogout: () => void; onUserPlus: () => void; onMenu?: () => void;
+  onHome?: () => void; homeActive?: boolean;
+}) {
   const c = th(dark);
   const ic = dark ? "#ffffff" : "black";
+  const accentBg = dark ? "#ffffff" : "#2b2b2b";
+  const accentIcon = dark ? "#2b2b2b" : "white";
   const iconBtn = "flex items-center justify-center cursor-pointer transition-all duration-150 hover:opacity-70 active:opacity-50 active:scale-[0.93] select-none";
+  const menuTop = onHome ? 202 : 142;
   return (
-    <div className="absolute left-px top-0 w-[72px] h-[1024px] overflow-clip transition-colors duration-300" style={{ backgroundColor: c.sidebarBg }}>
+    // z-[70]: stays above full-screen gate overlays (AuthGateModal, RegistrationScreen) so
+    // Menu/Home remain reachable while a registration/auth step is showing (see PosScreen).
+    <div className="absolute left-px top-0 w-[72px] h-[1024px] overflow-clip transition-colors duration-300 z-[70]" style={{ backgroundColor: c.sidebarBg }}>
       {/* Logo — matches Figma: inset-[1.46% 29.4% 95.64% 29.17%] of 72×1024 */}
       <div className="absolute" style={{ left: 21, top: 15 }}><IconLogo /></div>
 
       {/* User+ button */}
       <button
         onClick={onUserPlus}
-        className={`absolute left-[11px] top-[82px] w-[50px] h-[48px] rounded-[10px] flex items-center justify-center ${iconBtn}`}
-        style={{ backgroundColor: "#2b2b2b" }}
+        className={`absolute left-[11px] top-[82px] w-[50px] h-[48px] rounded-[10px] flex items-center justify-center transition-colors duration-300 ${iconBtn}`}
+        style={{ backgroundColor: accentBg }}
       >
-        <IconUserPlus />
+        <IconUserPlus color={accentIcon} />
+      </button>
+
+      {/* Home button — only shown when "Обязательная регистрация" is on; toggles Дом mode */}
+      {onHome && (
+        <button
+          onClick={onHome}
+          className={`absolute left-[11px] top-[142px] w-[50px] h-[48px] rounded-[10px] flex items-center justify-center transition-colors duration-300 ${iconBtn}`}
+          style={{ backgroundColor: homeActive ? "#47d465" : accentBg }}
+        >
+          <IconHome color={homeActive ? "white" : accentIcon} />
+        </button>
+      )}
+
+      {/* Menu button */}
+      <button
+        onClick={onMenu}
+        className={`absolute left-[11px] w-[50px] h-[48px] rounded-[10px] flex items-center justify-center transition-all duration-300 ${iconBtn}`}
+        style={{ top: menuTop, backgroundColor: accentBg }}
+      >
+        <IconMenu color={accentIcon} />
       </button>
 
       {/* Bottom icon cluster: shield (admin only), settings, message, logout */}
@@ -559,12 +634,161 @@ function LeftSidebar({ dark, adminMode, onLogout, onUserPlus }: { dark: boolean;
   );
 }
 
+// ─── Sidebar "Меню" flyout ─────────────────────────────────────────────────────
+
+interface MenuLeaf { label: string; badge?: string; }
+interface MenuSection { key: string; label: string; badge?: string; leaves?: MenuLeaf[]; columns?: MenuLeaf[][]; isMonitor?: boolean; }
+
+const MENU_SECTIONS: MenuSection[] = [
+  { key: "return", label: "Возврат товара", leaves: [
+      { label: "По карте", badge: "Backspace" },
+      { label: "По чеку", badge: "Alt+Backspace" },
+      { label: "Возврат носителя", badge: "Ctrl+Backspace" },
+  ]},
+  { key: "pledge", label: "Залог", leaves: [
+      { label: "По карте" },
+      { label: "Вернуть залог" },
+      { label: "Ячейки с залогом" },
+  ]},
+  { key: "client", label: "Информация о клиенте", badge: "F1", leaves: [
+      { label: "По карте" },
+      { label: "По бортовому" },
+      { label: "По телефону" },
+      { label: "Поиск клиента..." },
+      { label: "История по карте" },
+  ]},
+  { key: "cards", label: "Карты", columns: [
+      [
+        { label: "С регистрацией", badge: "Insert" },
+        { label: "По карте", badge: "Ctrl+Insert" },
+        { label: "Доп. по карте" },
+        { label: "Доп. с поиском" },
+        { label: "Оказание услуги", badge: "Home" },
+      ],
+      [
+        { label: "Блокировать" },
+        { label: "Разблокировать" },
+        { label: "Расширить билет", badge: "PageUp" },
+        { label: "Слияние счетов клиента" },
+      ],
+  ]},
+  { key: "preorder", label: "Предзаказ", leaves: [
+      { label: "Получить предзаказ", badge: "F12" },
+      { label: "Внести предоплату" },
+      { label: "Вернуть предоплату" },
+  ]},
+  { key: "monitors", label: "Мониторы", isMonitor: true },
+];
+
+function MonitorsPanel({ dark }: { dark: boolean }) {
+  const c = th(dark);
+  const zones = [{ name: "Зона 1", cur: 10, max: 15 }, { name: "Зона 2", cur: 10, max: 15 }];
+  return (
+    <div style={{ width: 280 }}>
+      <div className="flex items-center gap-[8px] mb-[14px]">
+        <span className="size-[8px] rounded-full shrink-0" style={{ backgroundColor: "#47d465" }} />
+        <span className="text-[15px] font-semibold flex-1" style={{ color: c.textPrimary }}>Монитор посещаемости</span>
+        <span className="text-[11px] opacity-50 whitespace-nowrap" style={{ color: c.textSec }}>Внутри/Максимум</span>
+      </div>
+      <div className="flex flex-col">
+        {zones.map((z, i) => (
+          <div key={z.name} className="flex items-center justify-between py-[10px]"
+            style={{ borderTop: i > 0 ? `1px solid ${c.divider}` : "none" }}>
+            <span className="text-[14px]" style={{ color: c.textSec }}>{z.name}</span>
+            <span className="text-[14px] font-bold" style={{ fontFeatureSettings: '"lnum","pnum"' }}>
+              <span style={{ color: "#F95B1C" }}>{z.cur}</span>
+              <span style={{ color: c.textSec }}>/{z.max}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SidebarMenu({ dark, onClose, onClientInfo }: { dark: boolean; onClose: () => void; onClientInfo: () => void }) {
+  const c = th(dark);
+  const [hover, setHover] = useState<string | null>(null);
+  const panelBorder = `1px solid ${dark ? c.divider : "#f0f0f0"}`;
+
+  const renderLeaf = (leaf: MenuLeaf, key: string) => (
+    <div key={key} onClick={onClose}
+      className="relative flex items-center px-[18px] h-[52px] rounded-[10px] cursor-pointer select-none transition-colors duration-100 hover:opacity-80 active:opacity-60"
+      style={{ backgroundColor: c.searchBg, color: c.textPrimary }}>
+      <span className="text-[14px] font-normal">{leaf.label}</span>
+      {leaf.badge && <span className="absolute top-[5px] right-[10px] text-[9px] opacity-50 whitespace-nowrap">{leaf.badge}</span>}
+    </div>
+  );
+
+  const activeSection = hover ? MENU_SECTIONS.find((s) => s.key === hover) : null;
+
+  return (
+    <>
+      <div className="fixed inset-0" style={{ zIndex: 39 }} onClick={onClose} />
+      <div className="absolute flex items-start" style={{ left: 82, top: 142, zIndex: 40 }} onMouseLeave={() => setHover(null)}>
+        {/* Main panel */}
+        <div className="rounded-[10px] overflow-hidden transition-colors duration-300"
+          style={{ width: 300, backgroundColor: c.sidebarBg, border: panelBorder, boxShadow: "0 8px 24px rgba(0,0,0,0.15)" }}>
+          <p className="px-[18px] pt-[18px] pb-[10px] font-bold text-[19px]" style={{ color: c.textPrimary }}>Меню</p>
+          <div className="flex flex-col gap-[8px] px-[14px] pb-[14px]">
+            {MENU_SECTIONS.map((sec) => {
+              const active = hover === sec.key;
+              return (
+                <div key={sec.key} onMouseEnter={() => setHover(sec.key)}
+                  onClick={() => (sec.key === "client" ? onClientInfo() : setHover(sec.key))}
+                  className="flex items-center justify-between px-[18px] h-[52px] rounded-[10px] cursor-pointer select-none transition-colors duration-100"
+                  style={{ backgroundColor: active ? "rgba(71,212,101,0.19)" : c.searchBg, color: c.textPrimary }}>
+                  <span className="text-[15px] font-normal">{sec.label}</span>
+                  <span className="flex items-center" style={{ transform: "rotate(90deg)" }}>
+                    <IconChevron down={false} color={dark ? "#fafaf9" : "#252422"} />
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Submenu flyout */}
+        {activeSection && (
+          <div className="relative ml-[8px] rounded-[10px] p-[14px] transition-colors duration-300"
+            style={{
+              backgroundColor: c.sidebarBg, border: panelBorder, boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+              width: activeSection.columns ? 560 : 280,
+            }}>
+            {activeSection.badge && (
+              <span className="absolute top-[10px] right-[14px] text-[10px] opacity-50" style={{ color: c.textSec }}>
+                {activeSection.badge}
+              </span>
+            )}
+            {activeSection.isMonitor ? (
+              <MonitorsPanel dark={dark} />
+            ) : activeSection.columns ? (
+              <div className="flex gap-[10px]">
+                {activeSection.columns.map((col, ci) => (
+                  <div key={ci} className="flex flex-col gap-[8px]" style={{ width: 260 }}>
+                    {col.map((leaf, li) => renderLeaf(leaf, `${ci}-${li}`))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-[8px]">
+                {activeSection.leaves!.map((leaf, li) => renderLeaf(leaf, String(li)))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // Category tab definitions matching Figma exactly
 const CATS = [
-  { id: "all",   label: "Все товары",          left: 115, width: 127 },
-  { id: "adult", label: "Взрослые билеты",      left: 264, width: 162 },
-  { id: "child", label: "Детские билеты",       left: 448, width: 151 },
-  { id: "other", label: "Еще какие-то билеты",  left: 621, width: 195 },
+  { id: "all",      label: "Все товары",  left: 115, width: 127 },
+  { id: "tickets",  label: "Билеты",      left: 264, width: 110 },
+  { id: "accounts", label: "Счета",       left: 396, width: 100 },
+  { id: "cards",    label: "Карты",       left: 518, width: 104 },
+  { id: "schedule", label: "Расписание",  left: 644, width: 150 },
 ];
 
 function TopBar({ dark, adminMode, onAdminToggle, activeCategory, onCategoryChange }: {
@@ -607,56 +831,184 @@ function TopBar({ dark, adminMode, onAdminToggle, activeCategory, onCategoryChan
   );
 }
 
-function ProductCard({ product, dark, onClick }: { product: Product; dark: boolean; onClick: (p: Product) => void }) {
-  const bg = dark && product.bg === "#ffffff" ? th(dark).productCard : product.bg;
-  const textColor = dark ? "#f0f0f0" : "#2b2b2b";
+const LONG_PRESS_MS = 550;
+
+function IconPlus({ color = "white" }: { color?: string }) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" className="size-5">
+      <path d="M12 5V19" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" />
+      <path d="M5 12H19" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" />
+    </svg>
+  );
+}
+
+function ProductCard({ product, dark, onClick, onLongPressAdd }: { product: Product; dark: boolean; onClick: (p: Product) => void; onLongPressAdd?: (p: Product) => void }) {
+  const isColoredCard = product.bg !== "#ffffff";
+  const bg = dark && !isColoredCard ? th(dark).productCard : product.bg;
+  // Colored cards keep a light pastel bg in both themes, so their text stays dark for contrast.
+  const textColor = isColoredCard ? "#2b2b2b" : (dark ? "#f0f0f0" : "#2b2b2b");
+
+  const pressTimer = useRef<number | null>(null);
+  const longPressed = useRef(false);
+
+  const startPress = (e: { stopPropagation: () => void }) => {
+    e.stopPropagation();
+    longPressed.current = false;
+    pressTimer.current = window.setTimeout(() => {
+      longPressed.current = true;
+      onLongPressAdd?.(product);
+    }, LONG_PRESS_MS);
+  };
+  const endPress = (e: { stopPropagation: () => void }) => {
+    e.stopPropagation();
+    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+    if (!longPressed.current) onClick(product);
+  };
+  const cancelPress = () => {
+    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+  };
+
   return (
     <div onClick={() => onClick(product)}
       className="relative h-[146px] w-[227px] rounded-[10px] overflow-hidden cursor-pointer select-none transition-all duration-150 hover:scale-[1.025] hover:shadow-md active:scale-[0.97] active:shadow-sm"
       style={{ backgroundColor: bg }}>
       <div className="absolute inset-0 flex flex-col justify-between" style={{ padding: "19px 15px 21px 12px" }}>
         <p className="text-[18px] font-semibold leading-[1.25] w-[200px]" style={{ color: textColor }}>{product.name}</p>
-        <p className="text-[18px] font-extrabold leading-[1.25]" style={{ color: textColor, fontFeatureSettings: '"lnum","pnum"' }}>
-          {product.price} ₽
-        </p>
+        <div className="flex items-end justify-between">
+          <p className="text-[18px] font-extrabold leading-[1.25]" style={{ color: textColor, fontFeatureSettings: '"lnum","pnum"' }}>
+            {product.priceLabel ?? `${product.price} ₽`}
+          </p>
+          <button
+            onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={cancelPress}
+            onTouchStart={startPress} onTouchEnd={endPress} onTouchCancel={cancelPress}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center justify-center size-[40px] rounded-[10px] shrink-0 cursor-pointer transition-all duration-150 hover:opacity-80 active:opacity-60 active:scale-[0.92] select-none"
+            style={{ backgroundColor: "#2b2b2b" }}>
+            <IconPlus />
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-function ProductGrid({ dark, onAdd }: { dark: boolean; onAdd: (p: Product) => void }) {
-  const rows  = [PRODUCTS.slice(0,4), PRODUCTS.slice(4,8), PRODUCTS.slice(8,12)];
-  const tops  = [223, 397, 571];
-  const lefts = [115, 358, 601, 844];
+function QuantityModal({ product, dark, onConfirm, onCancel }: { product: Product; dark: boolean; onConfirm: (qty: number) => void; onCancel: () => void }) {
+  const [value, setValue] = useState("1");
+  const c = th(dark);
+  const qty = Math.max(1, parseInt(value || "1", 10) || 1);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); if (e.key === "Enter") onConfirm(qty); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [qty, onCancel, onConfirm]);
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 60 }}>
+      <div className="absolute inset-0 bg-[#323232] opacity-43" onClick={onCancel} />
+      <div className="relative rounded-[10px] transition-colors duration-300" style={{ width: 596, padding: "35px 40px 40px", backgroundColor: c.sidebarBg }}>
+        <button onClick={onCancel}
+          className="absolute cursor-pointer transition-opacity hover:opacity-60 active:opacity-40 select-none"
+          style={{ right: 24, top: 24, padding: 0, background: "none", border: "none" }}>
+          <IconModalClose color={dark ? "#ffffff" : "#2b2b2b"} />
+        </button>
+        <p className="font-bold text-[24px] text-center" style={{ color: c.textPrimary }}>Введите количество</p>
+        <div className="mt-[28px] rounded-[10px] px-4 py-[16px]" style={{ backgroundColor: c.inputBg }}>
+          <input
+            autoFocus type="text" inputMode="numeric" value={value}
+            onChange={(e) => setValue(e.target.value.replace(/[^\d]/g, ""))}
+            className="bg-transparent outline-none text-[18px] font-semibold w-full"
+            style={{ color: c.textPrimary }}
+          />
+        </div>
+        <div className="mt-[24px] flex gap-[14px]">
+          <button onClick={() => onConfirm(qty)}
+            className="flex-1 h-[56px] rounded-[10px] text-[16px] font-semibold cursor-pointer select-none transition-all duration-150 hover:bg-[#47d465]/10 active:scale-[0.98]"
+            style={{ color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+            Ок
+          </button>
+          <button onClick={onCancel}
+            className="relative flex-1 h-[56px] rounded-[10px] text-[16px] font-semibold cursor-pointer select-none transition-all duration-150 hover:bg-black/5 active:scale-[0.98]"
+            style={{ color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+            Отмена
+            <span className="absolute top-[4px] right-[10px] text-[9px] opacity-50" style={{ color: c.textSec }}>Esc</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Shared grid rhythm: a card row is 146px tall; a section label sits LABEL_GAP
+// above its first row, and the next section's label sits SECTION_GAP below the
+// previous row's bottom edge. Keeping these as named constants (instead of
+// re-measuring one-off pixel values per section) keeps every section's spacing consistent.
+const GRID_LEFTS = [115, 358, 601, 844];
+const CARD_H = 146;
+// Same rhythm for every section, so "Билеты"/"Счета" sit under their labels
+// with the same breathing room as "Частые действия" instead of feeling cramped.
+const LABEL_GAP = 24;    // label → its first row
+const SECTION_GAP = 32;  // previous row's bottom edge → next section's label
+const ROW_PITCH = CARD_H + 28; // 174 — matches the card height plus the row gutter
+
+function ProductGrid({ dark, onAdd, onLongPressAdd }: { dark: boolean; onAdd: (p: Product) => void; onLongPressAdd: (p: Product) => void }) {
+  const c = th(dark);
+
+  const freqLabelTop = 187;
+  const freqRowTop = freqLabelTop + LABEL_GAP;                          // 211
+  const ticketsLabelTop = freqRowTop + CARD_H + SECTION_GAP;            // 389
+  const ticketsRow1Top = ticketsLabelTop + LABEL_GAP;                   // 413
+  const ticketsRow2Top = ticketsRow1Top + ROW_PITCH;                    // 587
+  const accountsLabelTop = ticketsRow2Top + CARD_H + SECTION_GAP;       // 765
+  const accountsRowTop = accountsLabelTop + LABEL_GAP;                  // 789
+
+  const renderRow = (products: Product[], top: number) =>
+    products.map((p, ci) => (
+      <div key={p.id} className="absolute" style={{ top, left: GRID_LEFTS[ci] }}>
+        <ProductCard product={p} dark={dark} onClick={onAdd} onLongPressAdd={onLongPressAdd} />
+      </div>
+    ));
+
+  const sectionLabel = (label: string, top: number) => (
+    <div className="absolute text-[16px] font-normal" style={{ left: 115, top, color: c.textSec }}>{label}</div>
+  );
+
   return (
     <>
-      <div className="absolute text-[16px] font-normal" style={{ left: 115, top: 187, color: th(dark).textSec }}>Частые действия</div>
-      {rows.map((row, ri) =>
-        row.map((p, ci) => (
-          <div key={p.id} className="absolute" style={{ top: tops[ri], left: lefts[ci] }}>
-            <ProductCard product={p} dark={dark} onClick={onAdd} />
-          </div>
-        ))
-      )}
+      {sectionLabel("Частые действия", freqLabelTop)}
+      {renderRow(PRODUCTS.slice(0, 4), freqRowTop)}
+
+      {sectionLabel("Билеты", ticketsLabelTop)}
+      {renderRow(PRODUCTS.slice(4, 8), ticketsRow1Top)}
+      {renderRow(PRODUCTS.slice(8, 12), ticketsRow2Top)}
+
+      {sectionLabel("Счета", accountsLabelTop)}
+      {renderRow(ACCOUNT_CARDS, accountsRowTop)}
     </>
   );
 }
 
-function ReceiptPanel({ dark, cartItems, onClear, onDelete, onAdd, onCheckout }: {
-  dark: boolean; cartItems: CartItem[]; onClear: () => void; onDelete: () => void; onAdd: () => void; onCheckout: () => void;
+function ReceiptPanel({ dark, adminMode, cartItems, onClear, onDeleteItem, onCheckout, client, onEditClient }: {
+  dark: boolean; adminMode: boolean; cartItems: CartItem[]; onClear: () => void; onDeleteItem: (id: number) => void; onCheckout: () => void;
+  client?: { name: string; phone: string } | null; onEditClient?: () => void;
 }) {
   const hasItems = cartItems.length > 0;
+  const showHeaderBlock = hasItems || !!client;
   const total = cartItems.reduce((s, i) => s + i.price, 0);
   const c = th(dark);
-  const darkBtn = "flex items-center justify-center text-white text-[14px] font-semibold rounded-[10px] bg-[#303030] transition-all duration-150 hover:bg-[#404040] active:bg-[#1a1a1a] active:scale-[0.98] select-none";
+  const chekTop = adminMode ? 132 : 91;
+  // The client card sits right under the "Чек открыт…" line when there is one;
+  // with no items yet (client authorized but nothing added), it takes that spot itself.
+  const clientCardTop = hasItems ? chekTop + 28 : chekTop;
+  const itemsTop = client ? clientCardTop + 76 : chekTop + 36;
 
   return (
     <div className="absolute left-[1114px] top-0 w-[326px] h-[1024px]">
       <div className="absolute inset-0 rounded-[10px] transition-colors duration-300"
         style={{ backgroundColor: c.sidebarBg, border: `1px solid ${dark ? c.divider : "#f9f9f9"}` }} />
 
-      {/* Title row — top-30 when empty, top-50 when has items (per Figma) */}
-      <div className="absolute flex items-center whitespace-nowrap" style={{ left: hasItems ? 18 : 16, top: hasItems ? 50 : 30, gap: 55 }}>
+      {/* Title row — top-30 when empty, top-50 once there are items or a client card (per Figma) */}
+      <div className="absolute flex items-center whitespace-nowrap" style={{ left: showHeaderBlock ? 18 : 16, top: showHeaderBlock ? 50 : 30, gap: 55 }}>
         <p className="text-[24px] font-bold tracking-[0.3px]" style={{ color: c.textPrimary }}>Продажа</p>
         <button onClick={hasItems ? onClear : undefined}
           className="text-[14px] font-normal underline underline-offset-2 transition-opacity duration-150"
@@ -667,30 +1019,69 @@ function ReceiptPanel({ dark, cartItems, onClear, onDelete, onAdd, onCheckout }:
         </button>
       </div>
 
+      {/* Admin-mode warning — non-fiscal sales notice */}
+      {adminMode && (
+        <div className="absolute flex items-start gap-[8px] w-[280px]" style={{ left: 22, top: hasItems ? 82 : 78 }}>
+          <div className="pt-[1px]"><IconWarning /></div>
+          <p className="text-[14px] font-normal leading-[1.25]" style={{ color: "#F95B1C" }}>
+            В режиме администратора все продажи нефискальны
+          </p>
+        </div>
+      )}
+
+      {/* Client card — shown as soon as a client is authorized, even before
+          the first item is added, and stays regardless of cart contents. */}
+      {client && (
+        <div className="absolute flex items-center gap-[10px] rounded-[10px] transition-colors duration-300"
+          style={{ left: 18, top: clientCardTop, width: 290, padding: 10, backgroundColor: c.inputBg }}>
+          <div className="rounded-full flex items-center justify-center shrink-0 select-none"
+            style={{ width: 40, height: 40, backgroundColor: "#47d465", color: "white", fontWeight: 700, fontSize: 16 }}>
+            {(client.name.trim()[0] ?? "?").toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[14px] font-semibold truncate" style={{ color: c.textPrimary }}>{client.name || "Клиент"}</p>
+            <p className="text-[12px] opacity-60 truncate" style={{ color: c.textSec }}>{client.phone}</p>
+          </div>
+          {onEditClient && (
+            <button onClick={onEditClient}
+              className="shrink-0 cursor-pointer transition-opacity hover:opacity-60 active:opacity-40 select-none"
+              style={{ background: "none", border: "none", padding: 0 }}>
+              <svg fill="none" viewBox="0 0 20 20" style={{ width: 18, height: 18 }}>
+                <path d="M13.5 3.5L16.5 6.5L7 16L3.5 16.5L4 13L13.5 3.5Z" stroke={c.textSec} strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
+
       {hasItems && (
         <>
-          <p className="absolute left-[22px] top-[91px] text-[14px] font-normal opacity-50 w-[224px] leading-[1.1]"
-            style={{ color: c.textSec, fontFeatureSettings: '"lnum","pnum"' }}>
+          <p className="absolute left-[22px] w-[224px] text-[14px] font-normal opacity-50 leading-[1.1]"
+            style={{ top: chekTop, color: c.textSec, fontFeatureSettings: '"lnum","pnum"' }}>
             Чек открыт 26.03.26 в 13:27
           </p>
-          {/* Cart items at top-127 */}
-          <div className="absolute left-[18px] top-[127px] w-[259px] flex flex-col">
+
+          {/* Cart items */}
+          <div className="absolute left-[18px] w-[290px] flex flex-col" style={{ top: itemsTop }}>
             {cartItems.map((item, idx) => {
               const isLast = idx === cartItems.length - 1;
               return (
                 <div key={item.id}>
-                  <div className="relative w-full h-[70px] p-[8px]" style={{ backgroundColor: isLast ? (dark ? "#1a3d22" : "#d2f4d9") : "transparent" }}>
-                    <div className="flex flex-col gap-[10px]">
-                      <p className="text-[14px] font-normal opacity-50 leading-[1.1] w-[224px]"
+                  <div className="relative w-full h-[100px] p-[8px]" style={{ backgroundColor: isLast ? (dark ? "#1a3d22" : "#d2f4d9") : "transparent" }}>
+                    <div className="flex flex-col gap-[10px] w-[224px]">
+                      <p className="text-[14px] font-normal opacity-50 leading-[1.1]"
                         style={{ color: c.textSec, fontFeatureSettings: '"lnum","pnum"' }}>
-                        Тип билета: Детский 1 круг
+                        {item.name}
                       </p>
                       <p className="text-[16px] font-extrabold leading-[1.25]"
                         style={{ color: c.textPrimary, fontFeatureSettings: '"lnum","pnum"' }}>
                         {item.price} ₽
                       </p>
                     </div>
-                    <img src={imgQR} alt="QR" className="absolute right-[8px] top-[30px] size-[32px] object-cover" />
+                    <button onClick={() => onDeleteItem(item.id)}
+                      className="absolute right-[8px] top-[8px] flex items-center justify-center size-[32px] rounded-[8px] cursor-pointer transition-all duration-150 hover:bg-black/5 active:scale-[0.9] active:opacity-60 select-none">
+                      <IconTrash color={dark ? "#c9c9c7" : "#7a7a78"} />
+                    </button>
                   </div>
                   {!isLast && <div className="w-full h-px" style={{ backgroundColor: c.divider }} />}
                 </div>
@@ -700,39 +1091,31 @@ function ReceiptPanel({ dark, cartItems, onClear, onDelete, onAdd, onCheckout }:
 
           {/* ПОЗИЦИИ + ИТОГО */}
           <div className="absolute flex items-center justify-between"
-            style={{ left: 34, top: 766, width: 259 }}>
+            style={{ left: 34, top: 838, width: 259 }}>
             <span className="text-[14px] font-extrabold" style={{ color: c.textPrimary, fontFeatureSettings: '"lnum","pnum"' }}>ПОЗИЦИИ:</span>
             <span className="text-[16px] font-extrabold" style={{ color: c.textPrimary, fontFeatureSettings: '"lnum","pnum"' }}>{cartItems.length}</span>
           </div>
           <div className="absolute flex items-center justify-between"
-            style={{ left: 35, top: 812, width: 258 }}>
+            style={{ left: 35, top: 878, width: 258 }}>
             <span className="text-[14px] font-extrabold" style={{ color: c.textPrimary, fontFeatureSettings: '"lnum","pnum"' }}>ИТОГО:</span>
             <span className="text-[16px] font-extrabold" style={{ color: c.textPrimary, fontFeatureSettings: '"lnum","pnum"' }}>{total} ₽</span>
           </div>
         </>
       )}
 
-      {/* Удалить / Добавить — opacity-58 when empty (per Figma) */}
-      <div className="absolute flex gap-[11px]" style={{ left: 34, top: 841, opacity: hasItems ? 1 : 0.58 }}>
-        <div onClick={hasItems ? onDelete : undefined}
-          className={`${darkBtn} w-[123px] h-[46px]`} style={{ cursor: hasItems ? "pointer" : "default" }}>Удалить</div>
-        <div onClick={hasItems ? onAdd : undefined}
-          className={`${darkBtn} w-[123px] h-[46px]`} style={{ cursor: hasItems ? "pointer" : "default" }}>Добавить</div>
-      </div>
-
-      {/* Скидка % — left-34 top-898 (1148-1114=34) */}
+      {/* Скидка % — left-34 top-906 */}
       <div
         className={`absolute flex items-center justify-center gap-[10px] rounded-[10px] select-none bg-[#303030] transition-all duration-150 ${hasItems ? "cursor-pointer hover:bg-[#404040] active:bg-[#1a1a1a] active:scale-[0.98]" : "cursor-default"}`}
-        style={{ left: 34, top: 898, width: 257, height: 46, opacity: hasItems ? 1 : 0.58 }}>
+        style={{ left: 34, top: 906, width: 257, height: 46, opacity: hasItems ? 1 : 0.58 }}>
         <span className="text-[14px] font-semibold text-white">Скидка</span>
         <IconPercent />
       </div>
 
-      {/* Расчет — left-34 top-955 */}
+      {/* Расчет — left-34 top-964 */}
       <button
         onClick={hasItems ? onCheckout : undefined}
         className={`absolute rounded-[10px] text-[14px] font-black text-white bg-[#47d465] transition-all duration-150 select-none ${hasItems ? "cursor-pointer hover:bg-[#3dc05a] active:bg-[#30a84a] active:scale-[0.98]" : "cursor-default"}`}
-        style={{ left: 34, top: 955, width: 258, height: 52, opacity: hasItems ? 1 : 0.58 }}>
+        style={{ left: 34, top: 964, width: 258, height: 52, opacity: hasItems ? 1 : 0.58 }}>
         Расчет
       </button>
     </div>
@@ -743,59 +1126,49 @@ function BottomBar({ dark, onClientInfo }: { dark: boolean; onClientInfo?: () =>
   const c = th(dark);
   const darkBtn = "absolute flex items-center justify-center text-[14px] font-semibold text-white rounded-[10px] bg-[#303030] cursor-pointer transition-all duration-150 hover:bg-[#404040] active:bg-[#1a1a1a] active:scale-[0.98] select-none";
 
-  // Мониторы and Меню: white bg, positioned at top-886
-  const outlineBtn = "absolute h-[46px] rounded-[10px] flex items-center justify-center gap-[10px] bg-white cursor-pointer transition-all duration-150 hover:shadow-md active:shadow-sm active:scale-[0.98] select-none drop-shadow-[0px_4px_8.75px_rgba(174,174,177,0.25)]";
-
   return (
     <>
-      {/* Мониторы — left-82 top-886 w-141 */}
-      <div className={outlineBtn} style={{ left: 82, top: 886, width: 141 }}>
-        <span className="text-[16px] font-normal text-[#252422]" style={{ fontFeatureSettings: '"lnum","pnum"' }}>Мониторы</span>
-        <div className="-scale-y-100"><IconAngleRight color="#303030" /></div>
-      </div>
-
-      {/* Меню — left-993 top-886 w-106 */}
-      <div className={outlineBtn} style={{ left: 993, top: 886, width: 106 }}>
-        <div className="rotate-180"><IconAngleRight color="#303030" /></div>
-        <span className="text-[16px] font-normal text-[#252422]" style={{ fontFeatureSettings: '"lnum","pnum"' }}>Меню</span>
-      </div>
-
       {/* White bottom bar container — left-82 top-944 w-1023 h-80 */}
       <div className="absolute left-[82px] top-[944px] w-[1023px] h-[80px] rounded-[10px] transition-colors duration-300"
         style={{ backgroundColor: c.bottomBarBg }} />
 
-      {/* Action buttons at top-961, exact Figma positions */}
-      <div className={`${darkBtn} left-[88px] top-[961px] w-[164px] h-[46px]`}>
+      {/* Action buttons at top-961 */}
+      <div className={`${darkBtn} left-[94px] top-[961px] w-[155px] h-[46px]`}>
         Возврат по карте
         <span className="absolute top-[2px] right-[8px] text-[6px] text-[#f5f5f5]">Backspace</span>
       </div>
-      <div className={`${darkBtn} left-[264px] top-[961px] w-[140px] h-[46px]`}>
+      <div className={`${darkBtn} left-[257px] top-[961px] w-[147px] h-[46px]`}>
         Возврат по чеку
-        <span className="absolute top-[2px] right-[8px] text-[6px] text-[#f5f5f5]">Alt=Backspace</span>
+        <span className="absolute top-[2px] right-[8px] text-[6px] text-[#f5f5f5]">Alt+Backspace</span>
       </div>
-      <div className={`${darkBtn} left-[416px] top-[961px] w-[142px] h-[46px]`}>
-        Возврат по чеку
-        <span className="absolute top-[2px] right-[8px] text-[6px] text-[#f5f5f5]">Alt=Backspace</span>
-      </div>
-      <div className={`${darkBtn} left-[570px] top-[961px] w-[141px] h-[46px]`}>
+      <button onClick={onClientInfo} className={`${darkBtn} left-[412px] top-[961px] w-[188px] h-[46px]`}>
+        Информация по карте
+        <span className="absolute top-[2px] right-[8px] text-[6px] text-[#f5f5f5]">F1</span>
+      </button>
+      <div className={`${darkBtn} left-[608px] top-[961px] w-[148px] h-[46px]`}>
         Гашение долгов
         <span className="absolute top-[2px] right-[8px] text-[6px] text-[#f5f5f5]">F8</span>
       </div>
-      <div className={`${darkBtn} left-[723px] top-[961px] w-[177px] h-[46px]`}>Печать последних QR</div>
-      <button onClick={onClientInfo} className={`${darkBtn} left-[912px] top-[961px] w-[188px] h-[46px]`}>Инфо о клиенте по карте</button>
+      <div className={`${darkBtn} left-[764px] top-[961px] w-[177px] h-[46px]`}>Печать последних QR</div>
+      <div className={`${darkBtn} left-[949px] top-[961px] w-[144px] h-[46px]`}>Печать прочека</div>
     </>
   );
 }
 
 // ─── Payment Modal ────────────────────────────────────────────────────────────
 
-type ProcessingKey = "cash" | "card" | "bonus";
+type PayMethod = "cash" | "card" | "deposit" | "bonus";
 
-const PROCESSING_OPTIONS: { key: ProcessingKey; label: string }[] = [
-  { key: "cash",  label: "Наличные" },
-  { key: "card",  label: "Безналичные" },
-  { key: "bonus", label: "Бонусы" },
+const PAY_METHODS: { key: PayMethod; label: string }[] = [
+  { key: "cash",    label: "Наличные" },
+  { key: "card",    label: "Безналичные" },
+  { key: "deposit", label: "Депозит" },
 ];
+
+const BONUS_BALANCE = 500;
+
+interface PayRow { id: number; method: PayMethod | null; amount: number; }
+let payRowId = 0;
 
 function IconCash({ selected }: { selected: boolean }) {
   const c = selected ? "white" : "#2B2B2B";
@@ -818,12 +1191,11 @@ function IconCreditCard({ selected }: { selected: boolean }) {
   );
 }
 
-function IconBonus({ selected }: { selected: boolean }) {
-  const c2 = selected ? "white" : "#252422";
+function IconHeart({ selected }: { selected: boolean }) {
+  const c = selected ? "white" : "#2B2B2B";
   return (
-    <svg fill="none" viewBox="0 0 15 16" className="w-[15px] h-[16px]">
-      <path clipRule="evenodd" d={svgPayment.p16e7000} fill="#A3CB72" fillRule="evenodd" />
-      <path clipRule="evenodd" d={svgPayment.p1949ba00} fill={c2} fillRule="evenodd" />
+    <svg viewBox="0 0 24 24" fill="none" className="w-[15px] h-[15px]">
+      <path d="M12 20.5C12 20.5 3 15 3 8.9C3 5.9 5.4 4 8 4C9.8 4 11.2 5 12 6.3C12.8 5 14.2 4 16 4C18.6 4 21 5.9 21 8.9C21 15 12 20.5 12 20.5Z" stroke={c} strokeWidth="1.8" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -844,65 +1216,78 @@ function IconRowRemove() {
 }
 
 // Close button × — dark, larger, from Group import
-function IconModalClose() {
+function IconModalClose({ color = "#303030" }: { color?: string }) {
   return (
     <div style={{ width: 32.345, height: 41.377, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ transform: "rotate(-51.98deg) scaleY(0.97) skewX(-13.97deg)" }}>
         <svg fill="none" viewBox="0 0 26.26 26.26" style={{ width: 26.259, height: 26.259 }}>
-          <path d={svgClose.p2deb47f0} fill="#303030" />
+          <path d={svgClose.p2deb47f0} fill={color} />
         </svg>
       </div>
     </div>
   );
 }
 
-function PaymentModal({ cartTotal, onConfirm, onCancel }: {
+function PaymentModal({ cartTotal, dark, onConfirm, onCancel }: {
   cartTotal: number;
+  dark: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  // rows = processings added to "Продажи"; activeKey = the one whose button is green
-  const [rows, setRows] = useState<ProcessingKey[]>([]);
-  const [activeKey, setActiveKey] = useState<ProcessingKey | null>(null);
-  const [amounts, setAmounts] = useState<Partial<Record<ProcessingKey, string>>>({});
+  const c = th(dark);
+  const [rows, setRows] = useState<PayRow[]>(() => [{ id: payRowId++, method: null, amount: cartTotal }]);
   const [email, setEmail] = useState("");
   const [org, setOrg] = useState("");
   const [inn, setInn] = useState("");
   const [noPrint, setNoPrint] = useState(false);
-  const [showError, setShowError] = useState(false);
   const [scrollRatio, setScrollRatio] = useState(0);
   const rowsRef = useRef<HTMLDivElement>(null);
 
-  const hasRows = rows.length > 0;
-  // paid = sum of all entered amounts
-  const paid = rows.reduce((sum, k) => sum + (parseFloat(amounts[k] ?? "0") || 0), 0);
-  const change = Math.max(0, paid - cartTotal);
-  const doplate = Math.max(0, cartTotal - paid);
+  const enteredSum = rows.reduce((s, r) => s + (r.amount || 0), 0);
+  const doplata = Math.max(0, cartTotal - enteredSum);
+  const change = Math.max(0, enteredSum - cartTotal);
+  const bonusUsed = rows.filter((r) => r.method === "bonus").reduce((s, r) => s + r.amount, 0);
+  const bonusRemaining = Math.max(0, BONUS_BALANCE - bonusUsed);
+  const bonusOn = rows.some((r) => r.method === "bonus");
+  const activeRow = rows[rows.length - 1];
+  const canAssign = !!activeRow && activeRow.method === null;
+  const canConfirm = doplata === 0 && rows.every((r) => r.method !== null);
+  // last row that has a real payment method — drives which button is highlighted green
+  const lastMethodRow = [...rows].reverse().find((r) => r.method !== null && r.method !== "bonus");
 
-  const handleProcessingClick = (key: ProcessingKey) => {
-    setShowError(false);
-    if (rows.includes(key)) {
-      // already added — just re-highlight its button
-      setActiveKey(key);
-    } else {
-      // add new row; default amount = current доплата (or full cartTotal if first row)
-      const defaultAmt = rows.length === 0 ? cartTotal : Math.max(0, cartTotal - paid);
-      setAmounts((a) => ({ ...a, [key]: String(defaultAmt) }));
-      setRows((r) => [...r, key]);
-      setActiveKey(key);
-    }
+  const setAmount = (id: number, amount: number) =>
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, amount } : r)));
+
+  const assignMethod = (id: number, method: PayMethod) => {
+    const wasOnlyRow = rows.length === 1;
+    const target = rows.find((r) => r.id === id);
+    if (!target) return;
+    const amount = method === "bonus" ? Math.min(target.amount, bonusRemaining) : target.amount;
+    const updated = rows.map((r) => (r.id === id ? { ...r, method, amount } : r));
+    const sum = updated.reduce((s, r) => s + r.amount, 0);
+    const remainder = Math.max(0, cartTotal - sum);
+    const final = remainder > 0 ? [...updated, { id: payRowId++, method: null, amount: remainder }] : updated;
+    setRows(final);
+    if (remainder === 0 && wasOnlyRow) setTimeout(onConfirm, 500);
   };
 
-  const removeRow = (key: ProcessingKey) => {
-    setRows((r) => r.filter((k) => k !== key));
-    setAmounts((a) => { const n = { ...a }; delete n[key]; return n; });
-    setActiveKey((prev) => (prev === key ? null : prev));
+  const removeRow = (id: number) => {
+    setRows((prev) => {
+      const next = prev.filter((r) => r.id !== id);
+      if (next.length === 0) return [{ id: payRowId++, method: null, amount: cartTotal }];
+      const sum = next.reduce((s, r) => s + r.amount, 0);
+      const remainder = Math.max(0, cartTotal - sum);
+      const lastSettled = next[next.length - 1].method !== null;
+      return remainder > 0 && lastSettled ? [...next, { id: payRowId++, method: null, amount: remainder }] : next;
+    });
   };
 
-  const handleConfirm = () => {
-    if (!hasRows) { setShowError(true); return; }
-    onConfirm();
+  const toggleBonus = () => {
+    if (bonusOn || !canAssign || bonusRemaining <= 0) return;
+    assignMethod(activeRow.id, "bonus");
   };
+
+  const handleConfirm = () => { if (canConfirm) onConfirm(); };
 
   const onRowScroll = () => {
     const el = rowsRef.current;
@@ -911,18 +1296,15 @@ function PaymentModal({ cartTotal, onConfirm, onCancel }: {
     setScrollRatio(max > 0 ? el.scrollTop / max : 0);
   };
 
-  const dialogH = hasRows ? 813 : 677;
-  // Scrollbar — always visible when rows exist (matches Figma Расчет12+)
-  const ROWS_TOP = 419;  // matches Input3 top in Расчет14 (calc(50%+40.5px) − 28)
+  const ROWS_TOP = 419;
   const ROWS_MAX_H = 220;
   const TRACK_H = 393;
-  // Thumb height: visible frame / total content * track, clamped to [30, TRACK_H]
-  const rowsTotalH = Math.max(1, rows.length * 64); // 56px row + 8px gap
+  const rowsTotalH = Math.max(1, rows.length * 64);
   const visibleRatio = Math.min(1, ROWS_MAX_H / rowsTotalH);
   const THUMB_H = Math.max(30, Math.round(TRACK_H * visibleRatio));
   const thumbTop = Math.round(scrollRatio * (TRACK_H - THUMB_H));
 
-  const inputCls = "w-full bg-[#f9f9f9] rounded-[10px] px-4 py-[18px] text-[14px] font-normal text-[#252422] outline-none focus:ring-2 focus:ring-[#47d465]/30 transition-shadow";
+  const inputCls = "w-full rounded-[10px] px-4 py-[18px] text-[14px] font-normal outline-none focus:ring-2 focus:ring-[#47d465]/30 transition-shadow";
 
   return (
     <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 50 }}>
@@ -931,31 +1313,50 @@ function PaymentModal({ cartTotal, onConfirm, onCancel }: {
 
       {/* Dialog */}
       <div
-        className="relative bg-white rounded-[10px] transition-all duration-200 overflow-hidden"
-        style={{ width: 1091, height: dialogH }}
+        className="relative rounded-[10px] transition-colors duration-300 overflow-hidden"
+        style={{ width: 1091, height: 813, backgroundColor: c.sidebarBg }}
       >
         {/* Close button × — top right */}
         <button onClick={onCancel}
           className="absolute cursor-pointer transition-opacity hover:opacity-60 active:opacity-40 select-none"
           style={{ right: 15.71, top: 8, padding: 0, background: "none", border: "none" }}>
-          <IconModalClose />
+          <IconModalClose color={dark ? "#f0f0f0" : "#303030"} />
         </button>
 
         {/* Title */}
-        <p className="absolute font-bold text-[24px] text-[#2b2b2b] left-[35px] top-[26px]">Расчет</p>
+        <p className="absolute font-bold text-[24px] left-[35px] top-[26px]" style={{ color: c.textPrimary }}>Расчет</p>
 
         {/* Section labels */}
-        <p className="absolute font-medium text-[16px] text-[#252422]" style={{ left: 44, top: 91 }}>Личные данные</p>
-        <p className="absolute font-medium text-[16px] text-[#252422]" style={{ left: 610, top: 91 }}>Процессинги</p>
+        <p className="absolute font-medium text-[16px]" style={{ left: 44, top: 91, color: c.textSec }}>Личные данные</p>
+        <p className="absolute font-medium text-[16px]" style={{ left: 610, top: 91, color: c.textSec }}>Процессинги</p>
+
+        {/* Bonus toggle — top right */}
+        <div className="absolute flex items-center gap-[10px]" style={{ right: 40, top: 89 }}>
+          <span className="text-[13px] whitespace-nowrap" style={{ color: c.textSec }}>
+            {`Списать бонусы (всего ${bonusRemaining} ₽)`}
+          </span>
+          <button onClick={toggleBonus}
+            className="relative shrink-0 transition-colors duration-200 select-none"
+            style={{
+              width: 40.6, height: 24, borderRadius: 17.5,
+              backgroundColor: bonusOn ? "#47d465" : "#a4a4a4",
+              opacity: !bonusOn && (!canAssign || bonusRemaining <= 0) ? 0.4 : 1,
+              cursor: !bonusOn && (!canAssign || bonusRemaining <= 0) ? "default" : "pointer",
+              border: "none", padding: 0,
+            }}>
+            <div className="absolute transition-all duration-200"
+              style={{ top: "11.54%", bottom: "11.54%", width: "45.36%", borderRadius: "50%", backgroundColor: "white", left: bonusOn ? "47.73%" : "8.9%" }} />
+          </button>
+        </div>
 
         {/* Left: personal data inputs */}
         <div className="absolute flex flex-col gap-[14px]" style={{ left: 35, top: 113, width: 552 }}>
           <input value={email} onChange={(e) => setEmail(e.target.value)}
-            placeholder="E-mail/Номер телефона" className={inputCls} />
+            placeholder="E-mail/Номер телефона" className={inputCls} style={{ backgroundColor: c.inputBg, color: c.textPrimary }} />
           <input value={org} onChange={(e) => setOrg(e.target.value)}
-            placeholder="Организация" className={inputCls} />
+            placeholder="Организация" className={inputCls} style={{ backgroundColor: c.inputBg, color: c.textPrimary }} />
           <input value={inn} onChange={(e) => setInn(e.target.value)}
-            placeholder="ИНН организации" className={inputCls} />
+            placeholder="ИНН организации" className={inputCls} style={{ backgroundColor: c.inputBg, color: c.textPrimary }} />
           <button onClick={() => setNoPrint((v) => !v)}
             className="flex items-center gap-[16px] px-[5px] cursor-pointer select-none transition-opacity hover:opacity-80 active:opacity-60">
             <div className="relative size-[20px] shrink-0 rounded-[3.5px] transition-all duration-150"
@@ -966,120 +1367,108 @@ function PaymentModal({ cartTotal, onConfirm, onCancel }: {
                 </svg>
               )}
             </div>
-            <span className="text-[14px] font-normal text-[#252422]">Не печатать чек</span>
+            <span className="text-[14px] font-normal" style={{ color: c.textSec }}>Не печатать чек</span>
           </button>
         </div>
 
-        {/* "Продажи" label — only when rows expanded */}
-        {hasRows && (
-          <p className="absolute font-medium text-[16px] text-[#252422]" style={{ left: 40, top: 378 }}>Продажи</p>
-        )}
+        {/* "Продажи" label */}
+        <p className="absolute font-medium text-[16px]" style={{ left: 40, top: 378, color: c.textSec }}>Продажи</p>
 
         {/* Scrollable rows frame — inside "Продажи" */}
-        {hasRows && (
-          <>
-            <div
-              ref={rowsRef}
-              onScroll={onRowScroll}
-              className="absolute flex flex-col gap-[8px] overflow-y-auto pr-[40px]"
-              style={{ left: "3.21%", right: "5.13%", top: ROWS_TOP, maxHeight: ROWS_MAX_H, scrollbarWidth: "none" }}
-            >
-              {rows.map((key) => {
-                const opt = PROCESSING_OPTIONS.find((o) => o.key === key)!;
-                return (
-                  <div key={key}
-                    className="flex items-center bg-[#f9f9f9] rounded-[10px] px-4 shrink-0 transition-shadow hover:shadow-sm"
-                    style={{ height: 56, gap: 40 }}>
-                    {/* Label */}
-                    <span className="text-[14px] font-normal text-[#303030] shrink-0" style={{ width: 89 }}>
-                      {opt.label}
-                    </span>
-                    {/* Amount input box */}
-                    <div className="relative shrink-0 bg-white rounded-[7px] flex items-center px-2"
-                      style={{ width: 106, height: 40, border: "1px solid rgba(43,43,43,0.2)" }}>
-                      <input
-                        value={amounts[key] ?? ""}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^\d]/g, "");
-                          setAmounts((a) => ({ ...a, [key]: val }));
-                        }}
-                        className="bg-transparent text-[14px] font-bold text-[#303030] outline-none text-right min-w-0 flex-1"
-                        style={{ fontFeatureSettings: '"lnum","pnum"' }}
-                      />
-                      <span className="text-[14px] font-normal text-[#303030] ml-[2px] shrink-0">₽</span>
-                    </div>
-                    <div className="flex-1" />
-                    {/* × remove */}
-                    <button onClick={() => removeRow(key)}
-                      className="cursor-pointer transition-opacity hover:opacity-70 active:opacity-40 shrink-0 select-none"
-                      style={{ background: "none", border: "none", padding: 0 }}>
-                      <IconRowRemove />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Custom scrollbar — Frame79 from Расчет14: w-0 container, SVG line paths */}
-            <div className="absolute" style={{ left: 1058, top: 421, width: 0, height: TRACK_H }}>
-              <div className="absolute" style={{ inset: "-0.25% -1px 0 -1px" }}>
-                <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 2 187">
-                  <path d="M1 1L1 186" stroke="#E5E5E5" strokeLinecap="round" strokeWidth="2" />
-                  <path
-                    d={`M1 ${1 + Math.round(thumbTop * 186 / TRACK_H)}L1 ${1 + Math.round((thumbTop + THUMB_H) * 186 / TRACK_H)}`}
-                    stroke="#47D465" strokeLinecap="round" strokeWidth="2"
+        <div
+          ref={rowsRef}
+          onScroll={onRowScroll}
+          className="absolute flex flex-col gap-[8px] overflow-y-auto pr-[40px]"
+          style={{ left: "3.21%", right: "5.13%", top: ROWS_TOP, maxHeight: ROWS_MAX_H, scrollbarWidth: "none" }}
+        >
+          {rows.map((row) => {
+            const label = row.method === null ? "Сумма" : row.method === "bonus" ? "Бонусы" : PAY_METHODS.find((m) => m.key === row.method)!.label;
+            return (
+              <div key={row.id}
+                className="flex items-center rounded-[10px] px-4 shrink-0 transition-shadow hover:shadow-sm"
+                style={{ height: 56, gap: 24, backgroundColor: c.inputBg }}>
+                <span className="text-[14px] font-normal shrink-0" style={{ width: 110, color: c.textSec }}>
+                  {label}
+                </span>
+                <div className="relative shrink-0 rounded-[7px] flex items-center px-2"
+                  style={{ width: 106, height: 40, border: "1px solid rgba(43,43,43,0.2)", backgroundColor: c.sidebarBg }}>
+                  <input
+                    value={String(row.amount)}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^\d]/g, "");
+                      setAmount(row.id, val === "" ? 0 : parseInt(val, 10));
+                    }}
+                    className="bg-transparent text-[14px] font-bold outline-none text-right min-w-0 flex-1"
+                    style={{ color: c.textPrimary, fontFeatureSettings: '"lnum","pnum"' }}
                   />
-                </svg>
+                  <span className="text-[14px] font-normal ml-[2px] shrink-0" style={{ color: c.textPrimary }}>₽</span>
+                </div>
+                <div className="flex-1" />
+                {/* × remove */}
+                <button onClick={() => removeRow(row.id)}
+                  className="cursor-pointer transition-opacity hover:opacity-70 active:opacity-40 shrink-0 select-none"
+                  style={{ background: "none", border: "none", padding: 0 }}>
+                  <IconRowRemove />
+                </button>
               </div>
-            </div>
-          </>
-        )}
+            );
+          })}
+        </div>
 
-        {/* Error — only after confirm with no rows */}
-        {showError && !hasRows && (
-          <p className="absolute text-[14px] font-normal text-[#e67e46]" style={{ left: 40, top: 432 }}>
-            Выберите процессинг
-          </p>
-        )}
+        {/* Custom scrollbar */}
+        <div className="absolute" style={{ left: 1058, top: 421, width: 0, height: TRACK_H }}>
+          <div className="absolute" style={{ inset: "-0.25% -1px 0 -1px" }}>
+            <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 2 187">
+              <path d="M1 1L1 186" stroke="#E5E5E5" strokeLinecap="round" strokeWidth="2" />
+              <path
+                d={`M1 ${1 + Math.round(thumbTop * 186 / TRACK_H)}L1 ${1 + Math.round((thumbTop + THUMB_H) * 186 / TRACK_H)}`}
+                stroke="#47D465" strokeLinecap="round" strokeWidth="2"
+              />
+            </svg>
+          </div>
+        </div>
 
         {/* Right: processing option buttons */}
         <div className="absolute flex flex-col gap-[11px]" style={{ left: 609, top: 113, width: 431 }}>
-          {PROCESSING_OPTIONS.map((opt) => {
-            const isActive = activeKey === opt.key && rows.includes(opt.key);
+          {PAY_METHODS.map((opt) => {
+            const isActive = lastMethodRow?.method === opt.key;
             return (
-              <button key={opt.key} onClick={() => handleProcessingClick(opt.key)}
+              <button key={opt.key} onClick={() => canAssign && assignMethod(activeRow.id, opt.key)}
+                disabled={!canAssign}
                 className={[
-                  "h-[56px] w-full rounded-[10px] flex items-center justify-center gap-[10px] text-[16px] font-semibold cursor-pointer select-none transition-all duration-150",
+                  "h-[56px] w-full rounded-[10px] flex items-center justify-center gap-[10px] text-[16px] font-semibold select-none transition-all duration-150",
                   isActive
-                    ? "bg-[#47d465] text-white hover:bg-[#3dc05a] active:bg-[#30a84a] active:scale-[0.98]"
-                    : "text-[#2b2b2b] hover:bg-[#f5f5f5] active:bg-[#ebebeb] active:scale-[0.98]",
+                    ? "bg-[#47d465] text-white hover:bg-[#3dc05a] active:bg-[#30a84a] active:scale-[0.98] cursor-pointer"
+                    : canAssign
+                      ? "hover:bg-black/5 active:scale-[0.98] cursor-pointer"
+                      : "opacity-40 cursor-default",
                 ].join(" ")}
-                style={!isActive ? { boxShadow: "inset 0 0 0 1px #47d465" } : {}}>
-                {opt.key === "cash"  && <IconCash selected={isActive} />}
-                {opt.key === "card"  && <IconCreditCard selected={isActive} />}
-                {opt.key === "bonus" && <IconBonus selected={isActive} />}
+                style={{ color: isActive ? "white" : c.textPrimary, ...(!isActive ? { boxShadow: "inset 0 0 0 1px #47d465" } : {}) }}>
+                {opt.key === "cash"    && <IconCash selected={isActive} />}
+                {opt.key === "card"    && <IconCreditCard selected={isActive} />}
+                {opt.key === "deposit" && <IconHeart selected={isActive} />}
                 {opt.label}
               </button>
             );
           })}
         </div>
 
-        {/* Summary bar — Сумма / Доплата / Сдача */}
-        <div className="absolute flex items-center justify-between text-[16px] font-medium text-[#252422] whitespace-nowrap"
-          style={{ left: 40, right: 40, bottom: 158 }}>
+        {/* Summary bar — Итого / Доплата / Сдача */}
+        <div className="absolute flex items-center justify-between text-[16px] font-medium whitespace-nowrap"
+          style={{ left: 40, right: 40, bottom: 158, color: c.textSec }}>
           <p style={{ fontFeatureSettings: '"lnum","pnum"' }}>
-            {"Сумма "}<span className="font-bold">{cartTotal} ₽</span>
+            {"Итого "}<span className="font-bold" style={{ color: c.textPrimary }}>{cartTotal} ₽</span>
           </p>
           <p style={{ fontFeatureSettings: '"lnum","pnum"' }}>
-            {"Доплата "}<span className="font-bold">{doplate} ₽</span>
+            {"Доплата "}<span className="font-bold" style={{ color: c.textPrimary }}>{doplata} ₽</span>
           </p>
           <p style={{ fontFeatureSettings: '"lnum","pnum"' }}>
-            {"Сдача "}<span className="font-bold">{change} ₽</span>
+            {"Сдача "}<span className="font-bold" style={{ color: c.textPrimary }}>{change} ₽</span>
           </p>
         </div>
 
         {/* Divider */}
-        <div className="absolute left-0 right-0 h-px bg-[#f0f0f0]" style={{ bottom: 113 }} />
+        <div className="absolute left-0 right-0 h-px" style={{ bottom: 113, backgroundColor: c.divider }} />
 
         {/* Bottom buttons */}
         <div className="absolute flex items-center gap-[17px]"
@@ -1087,15 +1476,15 @@ function PaymentModal({ cartTotal, onConfirm, onCancel }: {
           <button onClick={handleConfirm}
             className={[
               "w-[360px] h-[56px] rounded-[10px] text-[16px] font-semibold text-white bg-[#47d465] select-none transition-all duration-150",
-              hasRows
+              canConfirm
                 ? "cursor-pointer hover:bg-[#3dc05a] active:bg-[#30a84a] active:scale-[0.98]"
                 : "opacity-50 cursor-default",
             ].join(" ")}>
             Расчет
           </button>
           <button onClick={onCancel}
-            className="w-[360px] h-[56px] rounded-[10px] text-[14px] font-semibold text-[#2b2b2b] cursor-pointer select-none transition-all duration-150 hover:bg-[#f5f5f5] active:bg-[#ebebeb] active:scale-[0.98]"
-            style={{ boxShadow: "inset 0 0 0 1px #47d465" }}>
+            className="w-[360px] h-[56px] rounded-[10px] text-[14px] font-semibold cursor-pointer select-none transition-all duration-150 hover:bg-black/5 active:scale-[0.98]"
+            style={{ color: c.textPrimary, boxShadow: "inset 0 0 0 1px #47d465" }}>
             Отмена
           </button>
         </div>
@@ -1551,8 +1940,10 @@ function NewGuestModal({ initial, onSave, onCancel }: {
 
 // ─── Main registration screen ──────────────────────────────────────────────────
 
+interface RegisteredClientInfo { name: string; phone: string; guests: GuestEntry[]; }
+
 function RegistrationScreen({ phone, onCancel, onSave, onSaveAndPurchase }: {
-  phone: string; onCancel: () => void; onSave: () => void; onSaveAndPurchase: () => void;
+  phone: string; onCancel: () => void; onSave: () => void; onSaveAndPurchase: (info: RegisteredClientInfo) => void;
 }) {
   // Left card — user data
   const [category, setCategory]   = useState("");
@@ -1806,7 +2197,7 @@ function RegistrationScreen({ phone, onCancel, onSave, onSaveAndPurchase }: {
           Сохранить
         </button>
         {/* Перейти к покупке и сохранить */}
-        <button onClick={requiredFilled ? onSaveAndPurchase : undefined}
+        <button onClick={requiredFilled ? () => onSaveAndPurchase({ name, phone, guests }) : undefined}
           className={[
             "h-[56px] rounded-[10px] text-[16px] font-semibold text-white transition-all duration-150",
             requiredFilled
@@ -1835,6 +2226,200 @@ function RegistrationScreen({ phone, onCancel, onSave, onSaveAndPurchase }: {
           />
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Auth gate modal (mandatory-registration flow) ────────────────────────────
+// Shown before adding a product when "Обязательная регистрация" is on and no
+// client is authorized yet. Two tabs: phone entry (primary/first-time visit,
+// leads to full registration) and card scan (secondary visit, skips straight
+// to the till).
+
+function AuthGateModal({ onClose, onPhoneSuccess, onCardSuccess }: {
+  onClose: () => void;
+  onPhoneSuccess: (phone: string) => void;
+  onCardSuccess: () => void;
+}) {
+  const [tab, setTab] = useState<"phone" | "card">("phone");
+  const [phone, setPhone] = useState("");
+  const [accepted, setAccepted] = useState(false);
+  const [cardRead, setCardRead] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const digits = phone.replace(/\D/g, "").slice(0, 11);
+  const isValid = digits.length === 11;
+
+  useEffect(() => { if (tab === "phone" && !accepted) inputRef.current?.focus(); }, [tab, accepted]);
+
+  const handlePhoneOk = () => {
+    if (!accepted && isValid) { setAccepted(true); return; }
+    if (accepted) onPhoneSuccess(digits);
+  };
+  const handleClear = () => { setPhone(""); setAccepted(false); };
+
+  const handleCardClick = () => {
+    if (cardRead) return;
+    setCardRead(true);
+    setTimeout(onCardSuccess, 400);
+  };
+
+  const switchTab = (t: "phone" | "card") => {
+    setTab(t);
+    setPhone(""); setAccepted(false); setCardRead(false);
+  };
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 60 }}>
+      <div className="absolute inset-0" style={{ backgroundColor: "#403e3e", opacity: 0.41 }} onClick={onClose} />
+      <div className="relative bg-white rounded-[10px]" style={{ width: 596, padding: "32px 30px 30px" }}>
+        <button onClick={onClose}
+          className="absolute cursor-pointer transition-opacity hover:opacity-60 active:opacity-40"
+          style={{ right: 20, top: 20, background: "none", border: "none", padding: 0 }}>
+          <svg fill="none" viewBox="0 0 24 24" style={{ width: 20, height: 20 }}>
+            <path d="M6 6L18 18M18 6L6 18" stroke="#303030" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </button>
+
+        {/* Tabs */}
+        <div className="flex gap-[6px] p-[4px] rounded-[10px]" style={{ backgroundColor: "#f8f8f8" }}>
+          <button onClick={() => switchTab("phone")}
+            className="flex-1 h-[49px] rounded-[8px] text-[14px] font-semibold transition-all duration-150 cursor-pointer select-none"
+            style={{ backgroundColor: tab === "phone" ? "#47d465" : "transparent", color: tab === "phone" ? "white" : "#252422", opacity: tab === "phone" ? 1 : 0.5 }}>
+            Ввести номер
+          </button>
+          <button onClick={() => switchTab("card")}
+            className="flex-1 h-[49px] rounded-[8px] text-[14px] font-semibold transition-all duration-150 cursor-pointer select-none"
+            style={{ backgroundColor: tab === "card" ? "#47d465" : "transparent", color: tab === "card" ? "white" : "#252422", opacity: tab === "card" ? 1 : 0.5 }}>
+            Считать карту
+          </button>
+        </div>
+
+        {tab === "phone" ? (
+          <>
+            <div className="flex items-center gap-[10px] rounded-[10px] px-[16px] mt-[24px]"
+              style={{ height: 60, backgroundColor: "#f8f8f8" }}>
+              {accepted || isValid ? (
+                <svg fill="none" viewBox="0 0 24 24" style={{ width: 24, height: 24, flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="12" fill="#47D465" fillOpacity="0.12" />
+                  <path d="M7 12.5L10.5 16L17 9" stroke="#47D465" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg fill="none" viewBox="0 0 24 24" style={{ width: 24, height: 24, flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="12" fill="#E95525" fillOpacity="0.1" />
+                  <path d="M12 7V13" stroke="#F95B1C" strokeWidth="2" strokeLinecap="round" />
+                  <circle cx="12" cy="16.5" r="1.2" fill="#F95B1C" />
+                </svg>
+              )}
+              {accepted ? (
+                <span className="font-semibold text-[14px] text-[#2b2b2b] select-none" style={{ fontFeatureSettings: '"lnum","pnum"' }}>{digits}</span>
+              ) : (
+                <input ref={inputRef} type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+7 (___) ___-__-__"
+                  className="flex-1 bg-transparent text-[14px] font-semibold text-[#2b2b2b] outline-none placeholder:opacity-40"
+                  style={{ fontFeatureSettings: '"lnum","pnum"' }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && isValid) handlePhoneOk(); if (e.key === "Escape") onClose(); }} />
+              )}
+              {!accepted && phone.length > 0 && (
+                <button onClick={handleClear} className="shrink-0 cursor-pointer transition-opacity hover:opacity-60 active:opacity-40" style={{ background: "none", border: "none", padding: 0 }}>
+                  <svg fill="none" viewBox="0 0 14 14" style={{ width: 14, height: 14 }}>
+                    <path d="M1 1L13 13M13 1L1 13" stroke="#b0b0b0" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            <div className="flex gap-[14px] mt-[24px]">
+              <button onClick={handlePhoneOk} disabled={!isValid && !accepted}
+                className={["flex-1 h-[56px] rounded-[10px] text-[14px] font-semibold text-[#2b2b2b] select-none transition-all duration-150",
+                  (isValid || accepted) ? "cursor-pointer hover:bg-[#f0fdf4] active:bg-[#dcfce7] active:scale-[0.98]" : "opacity-52 cursor-default"].join(" ")}
+                style={{ border: "1px solid #47d465" }}>
+                Ок
+              </button>
+              <button onClick={onClose}
+                className="relative flex-1 h-[56px] rounded-[10px] text-[14px] font-semibold text-[#2b2b2b] cursor-pointer select-none transition-all duration-150 hover:bg-[#f5f5f5] active:bg-[#ebebeb] active:scale-[0.98]"
+                style={{ border: "1px solid #47d465" }}>
+                Отмена
+                <span className="absolute top-[4px] right-[10px] text-[9px] opacity-50">Esc</span>
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div onClick={handleCardClick}
+              className="flex items-center gap-[10px] rounded-[10px] px-[16px] mt-[24px] cursor-pointer transition-shadow"
+              style={{ height: 60, backgroundColor: "#f8f8f8", boxShadow: cardRead ? "0 0 0 2px rgba(71,212,101,0.35)" : undefined }}>
+              {cardRead ? (
+                <svg fill="none" viewBox="0 0 24 24" style={{ width: 24, height: 24, flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="12" fill="#47D465" fillOpacity="0.12" />
+                  <path d="M7 12.5L10.5 16L17 9" stroke="#47D465" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg fill="none" viewBox="0 0 24 24" style={{ width: 24, height: 24, flexShrink: 0 }}>
+                  <rect x="3" y="6" width="18" height="12" rx="2" stroke="#2b2b2b" strokeWidth="1.6" />
+                  <path d="M3 10H21" stroke="#2b2b2b" strokeWidth="1.6" />
+                </svg>
+              )}
+              <span className="text-[14px] font-semibold" style={{ color: cardRead ? "#2b2b2b" : "rgba(43,43,43,0.6)" }}>
+                {cardRead ? "Карта считана" : "Нажмите, чтобы считать карту"}
+              </span>
+            </div>
+            <div className="flex gap-[14px] mt-[24px]">
+              <button onClick={onClose}
+                className="w-full h-[56px] rounded-[10px] text-[14px] font-semibold text-[#2b2b2b] cursor-pointer select-none transition-all duration-150 hover:bg-[#f5f5f5] active:bg-[#ebebeb] active:scale-[0.98]"
+                style={{ border: "1px solid #47d465" }}>
+                Отмена
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Guest picker modal ────────────────────────────────────────────────────────
+// Shown when adding a product while more than one person (primary client +
+// guests checked "для текущего посещения") is on the current registration.
+
+interface PickPerson { id: string; name: string; isPrimary: boolean; }
+
+function GuestPickerModal({ productName, people, onPick, onCancel }: {
+  productName: string; people: PickPerson[]; onPick: (p: PickPerson) => void; onCancel: () => void;
+}) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 60 }}>
+      <div className="absolute inset-0" style={{ backgroundColor: "#403e3e", opacity: 0.41 }} onClick={onCancel} />
+      <div className="relative bg-white rounded-[10px]" style={{ width: 480, padding: "28px 28px 24px" }}>
+        <button onClick={onCancel}
+          className="absolute cursor-pointer transition-opacity hover:opacity-60 active:opacity-40"
+          style={{ right: 20, top: 20, background: "none", border: "none", padding: 0 }}>
+          <svg fill="none" viewBox="0 0 24 24" style={{ width: 20, height: 20 }}>
+            <path d="M6 6L18 18M18 6L6 18" stroke="#303030" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </button>
+        <p className="font-bold text-[18px] text-[#2b2b2b]" style={{ maxWidth: 400 }}>
+          Выберите пользователя для продажи {productName}
+        </p>
+        <div className="flex flex-col gap-[8px] mt-[20px]">
+          {people.map((p) => (
+            <button key={p.id} onClick={() => onPick(p)}
+              className="flex items-center gap-[8px] px-[16px] h-[52px] rounded-[10px] text-left cursor-pointer transition-colors hover:bg-[#f0f0f0] active:bg-[#e5e5e5]"
+              style={{ backgroundColor: "#f9f9f9" }}>
+              {p.isPrimary && (
+                <svg fill="#F9C846" viewBox="0 0 20 20" style={{ width: 16, height: 16, flexShrink: 0 }}>
+                  <path d="M10 1.5l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2-5.4 3.2 1.3-6-4.6-4.1 6.1-.6z" />
+                </svg>
+              )}
+              <span className="text-[14px] font-medium text-[#2b2b2b]">{p.name}</span>
+            </button>
+          ))}
+        </div>
+        <button onClick={onCancel}
+          className="w-full h-[48px] rounded-[10px] text-[14px] font-semibold text-[#2b2b2b] cursor-pointer select-none transition-all duration-150 hover:bg-[#f5f5f5] active:bg-[#ebebeb] active:scale-[0.98] mt-[20px]"
+          style={{ border: "1px solid #47d465" }}>
+          Отмена
+        </button>
+      </div>
     </div>
   );
 }
@@ -2550,7 +3135,9 @@ function CITextField({ label, required, value, onChange }: {
 
 // ─── POS Screen ───────────────────────────────────────────────────────────────
 
-function PosScreen({ dark, onLogout }: { dark: boolean; onLogout: () => void }) {
+type PendingAdd = { kind: "add"; product: Product; qty: number } | { kind: "qtyModal"; product: Product };
+
+function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onLogout: () => void; requireRegistration: boolean }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState("all");
   const [adminMode, setAdminMode] = useState(false);
@@ -2560,48 +3147,116 @@ function PosScreen({ dark, onLogout }: { dark: boolean; onLogout: () => void }) 
   const [registeredPhone, setRegisteredPhone] = useState("");
   const [showCardScan, setShowCardScan]       = useState(false);
   const [showClientInfo, setShowClientInfo]   = useState(false);
-  const c = th(dark);
+  const [qtyProduct, setQtyProduct]           = useState<Product | null>(null);
+  const [menuOpen, setMenuOpen]               = useState(false);
+  const effectiveDark = dark || adminMode;
+  const c = th(effectiveDark);
 
-  const addToCart = (p: Product) =>
-    setCartItems((prev) => [...prev, { id: nextCartId++, productId: p.id, name: p.name, price: p.price }]);
-  const clearCart      = () => setCartItems([]);
-  const deleteLastItem = () => setCartItems((prev) => prev.slice(0, -1));
-  const addMoreLast    = () => {
-    if (!cartItems.length) return;
-    const last = cartItems[cartItems.length - 1];
-    setCartItems((prev) => [...prev, { id: nextCartId++, productId: last.productId, name: last.name, price: last.price }]);
-  };
+  const [homeMode, setHomeMode]         = useState(false);
+  const [gateStage, setGateStage]       = useState<"gate" | "register" | null>(null);
+  const [gatePhone, setGatePhone]       = useState("");
+  const [pendingAdd, setPendingAdd]     = useState<PendingAdd | null>(null);
+  const [currentClient, setCurrentClient] = useState<{ name: string; phone: string } | null>(null);
+  const [guests, setGuests]             = useState<GuestEntry[]>([]);
+  const [pickerRequest, setPickerRequest] = useState<{ product: Product; qty: number } | null>(null);
+
+  // With "Обязательная регистрация" on, prompt for the client right away when
+  // the till opens (after "Сохранить" on the settings screen) instead of
+  // waiting for the first product click.
+  useEffect(() => {
+    if (requireRegistration && !currentClient && !homeMode) setGateStage("gate");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const addToCart = (p: Product, qty: number = 1, guestName?: string) =>
+    setCartItems((prev) => [...prev, ...Array.from({ length: qty }, () => ({ id: nextCartId++, productId: p.id, name: p.name, price: p.price, guestName }))]);
+  const clearCart     = () => setCartItems([]);
+  const deleteItem    = (id: number) => setCartItems((prev) => prev.filter((i) => i.id !== id));
 
   const cartTotal = cartItems.reduce((s, i) => s + i.price, 0);
 
+  // If more than one person (primary client + guests checked "для текущего
+  // посещения") is on the visit, ask which one the product is for.
+  const resolveAdd = (product: Product, qty: number) => {
+    const selected = guests.filter((g) => g.selectedForVisit);
+    if (selected.length > 0) setPickerRequest({ product, qty });
+    else addToCart(product, qty);
+  };
+
+  const handleProductClick = (product: Product) => {
+    if (requireRegistration && !currentClient) {
+      setHomeMode(false);
+      setPendingAdd({ kind: "add", product, qty: 1 });
+      setGateStage("gate");
+      return;
+    }
+    resolveAdd(product, 1);
+  };
+
+  const handleLongPressAdd = (product: Product) => {
+    if (requireRegistration && !currentClient) {
+      setHomeMode(false);
+      setPendingAdd({ kind: "qtyModal", product });
+      setGateStage("gate");
+      return;
+    }
+    setQtyProduct(product);
+  };
+
   return (
     <div className="absolute inset-0 transition-colors duration-300" style={{ backgroundColor: c.screenBg }}>
-      <LeftSidebar dark={dark} adminMode={adminMode} onLogout={onLogout} onUserPlus={() => setShowPhone(true)} />
-      <TopBar dark={dark} adminMode={adminMode} onAdminToggle={() => setAdminMode((m) => !m)}
+      <LeftSidebar dark={effectiveDark} adminMode={adminMode} onLogout={onLogout} onUserPlus={() => setShowPhone(true)}
+        onMenu={() => setMenuOpen((v) => !v)}
+        onHome={requireRegistration ? () => setHomeMode((v) => !v) : undefined}
+        homeActive={homeMode}
+      />
+      <TopBar dark={effectiveDark} adminMode={adminMode} onAdminToggle={() => setAdminMode((m) => !m)}
         activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
 
-      {/* Collapse arrow — left-1077 top-43 size-46 (visible when cart has items per Figma) */}
-      {cartItems.length > 0 && (
-        <div className="absolute left-[1077px] top-[43px] size-[46px] rounded-[10px] bg-white flex items-center justify-center cursor-pointer transition-shadow hover:shadow-md active:shadow-sm drop-shadow-[0px_4px_8.75px_rgba(174,174,177,0.25)] select-none">
-          <div className="rotate-180"><IconAngleRight color="#303030" /></div>
-        </div>
+      {menuOpen && (
+        <SidebarMenu dark={effectiveDark} onClose={() => setMenuOpen(false)}
+          onClientInfo={() => { setShowCardScan(true); setMenuOpen(false); }} />
       )}
 
-      <ProductGrid dark={dark} onAdd={addToCart} />
-      <BottomBar dark={dark} onClientInfo={() => setShowCardScan(true)} />
+      <ProductGrid dark={effectiveDark} onAdd={handleProductClick} onLongPressAdd={handleLongPressAdd} />
+      <BottomBar dark={effectiveDark} onClientInfo={() => setShowCardScan(true)} />
+
+      {qtyProduct && (
+        <QuantityModal
+          product={qtyProduct}
+          dark={effectiveDark}
+          onConfirm={(qty) => { resolveAdd(qtyProduct, qty); setQtyProduct(null); }}
+          onCancel={() => setQtyProduct(null)}
+        />
+      )}
       <ReceiptPanel
-        dark={dark}
+        dark={effectiveDark}
+        adminMode={adminMode}
         cartItems={cartItems}
         onClear={clearCart}
-        onDelete={deleteLastItem}
-        onAdd={addMoreLast}
+        onDeleteItem={deleteItem}
         onCheckout={() => cartItems.length > 0 && setShowPayment(true)}
+        client={currentClient}
+        onEditClient={currentClient ? () => setGateStage("register") : undefined}
       />
+
+      {pickerRequest && (
+        <GuestPickerModal
+          productName={pickerRequest.product.name}
+          people={[
+            { id: "primary", name: currentClient?.name || "Клиент", isPrimary: true },
+            ...guests.filter((g) => g.selectedForVisit).map((g) => ({ id: String(g.id), name: g.name || "Гость", isPrimary: false })),
+          ]}
+          onPick={(person) => { addToCart(pickerRequest.product, pickerRequest.qty, person.isPrimary ? undefined : person.name); setPickerRequest(null); }}
+          onCancel={() => setPickerRequest(null)}
+        />
+      )}
 
       {showPayment && (
         <PaymentModal
           cartTotal={cartTotal}
-          onConfirm={() => { clearCart(); setShowPayment(false); }}
+          dark={effectiveDark}
+          onConfirm={() => { clearCart(); setCurrentClient(null); setGuests([]); setShowPayment(false); }}
           onCancel={() => setShowPayment(false)}
         />
       )}
@@ -2632,6 +3287,52 @@ function PosScreen({ dark, onLogout }: { dark: boolean; onLogout: () => void }) 
       {showClientInfo && (
         <ClientInfoScreen onClose={() => setShowClientInfo(false)} />
       )}
+
+      {/* Mandatory-registration gate screens — hidden (not unmounted, so any
+          in-progress typing survives) while the side menu is open; per spec,
+          opening the menu closes the registration window and it resumes once
+          the menu closes. */}
+      {gateStage === "gate" && (
+        <div style={{ display: menuOpen ? "none" : undefined }}>
+          <AuthGateModal
+            onClose={() => { setGateStage(null); setPendingAdd(null); }}
+            onPhoneSuccess={(phone) => { setGatePhone(phone); setGateStage("register"); }}
+            onCardSuccess={() => {
+              setCurrentClient({ name: "Гость по карте", phone: "" });
+              setGuests([]);
+              setGateStage(null);
+              if (pendingAdd) {
+                const pa = pendingAdd;
+                setPendingAdd(null);
+                if (pa.kind === "qtyModal") setQtyProduct(pa.product);
+                else addToCart(pa.product, pa.qty);
+              }
+            }}
+          />
+        </div>
+      )}
+      {gateStage === "register" && (
+        <div style={{ display: menuOpen ? "none" : undefined }}>
+          <RegistrationScreen
+            phone={currentClient?.phone || gatePhone}
+            onCancel={() => { setGateStage(null); setPendingAdd(null); }}
+            onSave={() => setGateStage(null)}
+            onSaveAndPurchase={(info) => {
+              setCurrentClient({ name: info.name, phone: info.phone });
+              setGuests(info.guests);
+              setGateStage(null);
+              if (pendingAdd) {
+                const pa = pendingAdd;
+                setPendingAdd(null);
+                const selected = info.guests.filter((g) => g.selectedForVisit);
+                if (pa.kind === "qtyModal") setQtyProduct(pa.product);
+                else if (selected.length > 0) setPickerRequest({ product: pa.product, qty: pa.qty });
+                else addToCart(pa.product, pa.qty);
+              }
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -2639,34 +3340,62 @@ function PosScreen({ dark, onLogout }: { dark: boolean; onLogout: () => void }) 
 // ─── Root App ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [scale, setScale] = useState(1);
+  // Scaled uniformly to FIT inside the browser window (never crops or hides
+  // any part of the UI) and centered, so any leftover space is an even margin
+  // on all sides instead of content bleeding off-screen or being stretched
+  // past its natural size on windows that aren't shaped like 1440×1024.
+  //
+  // The outer wrapper is sized from these same tracked pixel values instead
+  // of vw/vh (w-screen/h-screen): on some mobile browsers and devtools device
+  // emulation, 100vw/100vh can disagree with documentElement's own
+  // clientWidth/clientHeight, which desynced the centering math from the
+  // scale — content rendered at the right size but shifted off-screen.
+  // Keeping one source of truth for both eliminates that mismatch.
+  const [viewport, setViewport] = useState({ w: 1440, h: 1024 });
+  const scale = Math.min(viewport.w / 1440, viewport.h / 1024);
   const [screen, setScreen] = useState<Screen>("login-password");
-  const [darkTheme, setDarkTheme] = useState(false);
+  // Replaces the old manual dark-theme toggle: it no longer changes any screen's
+  // colors by itself (dark mode is now only reachable via "Режим администратора"
+  // on the till), it gates whether a customer must be authorized before a
+  // product can be added on the POS screen.
+  const [requireRegistration, setRequireRegistration] = useState(false);
 
   useLayoutEffect(() => {
-    const compute = () => setScale(Math.min(window.innerWidth / 1440, window.innerHeight / 1024));
+    const compute = () => {
+      const el = document.documentElement;
+      setViewport({ w: el.clientWidth, h: el.clientHeight });
+    };
     compute();
+    // ResizeObserver instead of relying solely on the window "resize" event:
+    // some viewport changes (devtools/device emulation, some OS-level zoom or
+    // display changes) don't reliably fire a "resize" event, which left the
+    // canvas scaled for the previous size until something else happened to
+    // trigger a recompute. Observing <html> catches every actual size change.
+    const ro = new ResizeObserver(compute);
+    ro.observe(document.documentElement);
     window.addEventListener("resize", compute);
-    return () => window.removeEventListener("resize", compute);
+    return () => { ro.disconnect(); window.removeEventListener("resize", compute); };
   }, []);
 
   return (
-    <div className="w-screen h-screen overflow-hidden" style={{ fontFamily: "Raleway, sans-serif", backgroundColor: th(darkTheme).screenBg }}>
-      <div style={{ width: 1440, height: 1024, transformOrigin: "top left", transform: `scale(${scale})`, position: "absolute", top: 0, left: 0 }}>
+    <div className="overflow-hidden" style={{ width: viewport.w, height: viewport.h, fontFamily: "Raleway, sans-serif", backgroundColor: th(false).screenBg }}>
+      <div style={{ width: 1440, height: 1024, transform: `translate(-50%, -50%) scale(${scale})`, position: "absolute", top: "50%", left: "50%" }}>
         {screen === "login-password" && (
-          <LoginPasswordScreen dark={darkTheme} onLogin={() => setScreen("select-installation")} onSwitchToPin={() => setScreen("login-pin")} />
+          <LoginPasswordScreen dark={false} onLogin={() => setScreen("select-installation")} onSwitchToPin={() => setScreen("login-pin")} />
         )}
         {screen === "login-pin" && (
-          <LoginPinScreen dark={darkTheme} onLogin={() => setScreen("select-installation")} onSwitchToPassword={() => setScreen("login-password")} />
+          <LoginPinScreen dark={false} onLogin={() => setScreen("select-installation")} onSwitchToPassword={() => setScreen("login-password")} />
         )}
         {screen === "select-installation" && (
-          <SelectInstallationScreen dark={darkTheme} onOk={() => setScreen("settings")} onCancel={() => setScreen("login-password")} />
+          <SelectInstallationScreen dark={false} onOk={() => setScreen("settings")} onCancel={() => setScreen("login-password")} />
         )}
         {screen === "settings" && (
-          <SettingsScreen dark={darkTheme} onDarkToggle={() => setDarkTheme((d) => !d)} onSave={() => setScreen("pos")} onBack={() => setScreen("select-installation")} />
+          <SettingsScreen dark={false} requireRegistration={requireRegistration}
+            onToggleRequireRegistration={() => setRequireRegistration((v) => !v)}
+            onSave={() => setScreen("pos")} onBack={() => setScreen("select-installation")} />
         )}
         {screen === "pos" && (
-          <PosScreen dark={darkTheme} onLogout={() => setScreen("login-password")} />
+          <PosScreen dark={false} requireRegistration={requireRegistration} onLogout={() => setScreen("login-password")} />
         )}
       </div>
     </div>
