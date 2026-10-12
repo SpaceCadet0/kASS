@@ -16,7 +16,7 @@ import svgClientInfo from "@/imports/СРегистрацией/svg-3jfmc2efvu";
 
 type Screen = "login-password" | "login-pin" | "select-installation" | "settings" | "pos";
 
-interface CartItem { id: number; productId: number; name: string; price: number; guestName?: string; }
+interface CartItem { id: number; productId: number; name: string; price: number; guestName?: string; kind?: "debt" | "return-carrier"; card?: string; }
 interface Product  { id: number; name: string; price: number; bg: string; priceLabel?: string; }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -640,20 +640,20 @@ function LeftSidebar({ dark, adminMode, onLogout, onUserPlus, onMenu, onHome, ho
 // section's actions and their hotkeys.
 
 type MenuIconKind = "ticket" | "lock" | "user" | "card" | "monitor";
-interface MenuLeaf { label: string; badge?: string; opensClientInfo?: boolean; }
+interface MenuLeaf { label: string; badge?: string; opensClientInfo?: boolean; action?: MenuAction; }
 interface MenuSection {
-  key: string; label: string; badge?: string; icon?: MenuIconKind;
+  key: string; label: string; badge?: string; icon?: MenuIconKind; action?: MenuAction;
   leaves?: MenuLeaf[]; columns?: MenuLeaf[][]; isMonitor?: boolean;
 }
 
 const MENU_SECTIONS: MenuSection[] = [
-  { key: "debts",    label: "Гашение долгов", badge: "F8" },
+  { key: "debts",    label: "Гашение долгов", badge: "F8", action: "debts" },
   { key: "qr",       label: "Печать последних QR кодов" },
   { key: "precheck", label: "Печать пречека" },
   { key: "return", label: "Возврат товара", icon: "ticket", leaves: [
-      { label: "По карте", badge: "Backspace" },
-      { label: "По чеку", badge: "Alt+Backspace" },
-      { label: "Возврат носителя", badge: "Ctrl+Backspace" },
+      { label: "По карте", badge: "Backspace", action: "returnCard" },
+      { label: "По чеку", badge: "Alt+Backspace", action: "returnCheck" },
+      { label: "Возврат носителя", badge: "Ctrl+Backspace", action: "returnCarrier" },
   ]},
   { key: "pledge", label: "Залог", icon: "lock", leaves: [
       { label: "По карте" },
@@ -758,7 +758,7 @@ const MENU_CARD_H = 132;
 const MENU_GAP = 10;
 const MENU_HEADER_H = 76;
 
-function SidebarMenu({ dark, onClose, onClientInfo }: { dark: boolean; onClose: () => void; onClientInfo: () => void }) {
+function SidebarMenu({ dark, onClose, onClientInfo, onAction }: { dark: boolean; onClose: () => void; onClientInfo: () => void; onAction: (a: MenuAction) => void }) {
   const c = th(dark);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const activeSection = openKey ? MENU_SECTIONS.find((s) => s.key === openKey) ?? null : null;
@@ -798,7 +798,7 @@ function SidebarMenu({ dark, onClose, onClientInfo }: { dark: boolean; onClose: 
   );
 
   const renderLeaf = (leaf: MenuLeaf, key: string) => (
-    <button key={key} onClick={() => (leaf.opensClientInfo ? onClientInfo() : onClose())}
+    <button key={key} onClick={() => (leaf.opensClientInfo ? onClientInfo() : leaf.action ? onAction(leaf.action) : onClose())}
       className={`${baseBtn} ${cardCls} flex items-center justify-between`}
       style={{ height: 72, padding: "0 18px", color: c.textPrimary }}>
       <span className="text-[18px] font-medium leading-[1.2]">{leaf.label}</span>
@@ -830,7 +830,7 @@ function SidebarMenu({ dark, onClose, onClientInfo }: { dark: boolean; onClose: 
                   const isOpen = openKey === sec.key;
                   return (
                     <button key={sec.key} aria-expanded={navigable ? isOpen : undefined}
-                      onClick={() => (navigable ? setOpenKey(isOpen ? null : sec.key) : onClose())}
+                      onClick={() => (navigable ? setOpenKey(isOpen ? null : sec.key) : sec.action ? onAction(sec.action) : onClose())}
                       className={`${baseBtn} ${isOpen ? cardOpenCls : cardCls} overflow-hidden shrink-0`}
                       style={{ height: MENU_CARD_H, padding: "20px 18px", color: c.textPrimary }}>
                       {sec.icon && <MenuWatermark kind={sec.icon} dark={dark} />}
@@ -1093,11 +1093,12 @@ function ProductGrid({ dark, onAdd, onLongPressAdd }: { dark: boolean; onAdd: (p
   );
 }
 
-function ReceiptPanel({ dark, adminMode, cartItems, onClear, onDeleteItem, onCheckout, client, onEditClient }: {
-  dark: boolean; adminMode: boolean; cartItems: CartItem[]; onClear: () => void; onDeleteItem: (id: number) => void; onCheckout: () => void;
+function ReceiptPanel({ dark, adminMode, cartItems, onClear, onDeleteItem, onCheckout, onRefund, client, onEditClient }: {
+  dark: boolean; adminMode: boolean; cartItems: CartItem[]; onClear: () => void; onDeleteItem: (id: number) => void; onCheckout: () => void; onRefund: () => void;
   client?: { name: string; phone: string } | null; onEditClient?: () => void;
 }) {
   const hasItems = cartItems.length > 0;
+  const hasCarrierReturn = cartItems.some((i) => i.kind === "return-carrier");
   const showHeaderBlock = hasItems || !!client;
   const total = cartItems.reduce((s, i) => s + i.price, 0);
   const c = th(dark);
@@ -1218,16 +1219,16 @@ function ReceiptPanel({ dark, adminMode, cartItems, onClear, onDeleteItem, onChe
 
       {/* Расчет — left-34 top-964 */}
       <button
-        onClick={hasItems ? onCheckout : undefined}
+        onClick={hasItems ? (hasCarrierReturn ? onRefund : onCheckout) : undefined}
         className={`absolute rounded-[10px] text-[14px] font-black text-white bg-[#47d465] transition-all duration-150 select-none ${hasItems ? "cursor-pointer hover:bg-[#3dc05a] active:bg-[#30a84a] active:scale-[0.98]" : "cursor-default"}`}
         style={{ left: 34, top: 964, width: 258, height: 52, opacity: hasItems ? 1 : 0.58 }}>
-        Расчет
+        {hasCarrierReturn ? "Возврат" : "Расчет"}
       </button>
     </div>
   );
 }
 
-function BottomBar({ dark, onClientInfo }: { dark: boolean; onClientInfo?: () => void }) {
+function BottomBar({ dark, onClientInfo, onAction }: { dark: boolean; onClientInfo?: () => void; onAction?: (a: MenuAction) => void }) {
   const c = th(dark);
   const darkBtn = "absolute flex items-center justify-center text-[14px] font-semibold text-white rounded-[10px] bg-[#303030] cursor-pointer transition-all duration-150 hover:bg-[#404040] active:bg-[#1a1a1a] active:scale-[0.98] select-none";
 
@@ -1238,22 +1239,22 @@ function BottomBar({ dark, onClientInfo }: { dark: boolean; onClientInfo?: () =>
         style={{ backgroundColor: c.bottomBarBg }} />
 
       {/* Action buttons at top-961 */}
-      <div className={`${darkBtn} left-[94px] top-[961px] w-[155px] h-[46px]`}>
+      <button onClick={() => onAction?.("returnCard")} className={`${darkBtn} left-[94px] top-[961px] w-[155px] h-[46px]`}>
         Возврат по карте
         <span className="absolute top-[2px] right-[8px] text-[6px] text-[#f5f5f5]">Backspace</span>
-      </div>
-      <div className={`${darkBtn} left-[257px] top-[961px] w-[147px] h-[46px]`}>
+      </button>
+      <button onClick={() => onAction?.("returnCheck")} className={`${darkBtn} left-[257px] top-[961px] w-[147px] h-[46px]`}>
         Возврат по чеку
         <span className="absolute top-[2px] right-[8px] text-[6px] text-[#f5f5f5]">Alt+Backspace</span>
-      </div>
+      </button>
       <button onClick={onClientInfo} className={`${darkBtn} left-[412px] top-[961px] w-[188px] h-[46px]`}>
         Информация по карте
         <span className="absolute top-[2px] right-[8px] text-[6px] text-[#f5f5f5]">F1</span>
       </button>
-      <div className={`${darkBtn} left-[608px] top-[961px] w-[148px] h-[46px]`}>
+      <button onClick={() => onAction?.("debts")} className={`${darkBtn} left-[608px] top-[961px] w-[148px] h-[46px]`}>
         Гашение долгов
         <span className="absolute top-[2px] right-[8px] text-[6px] text-[#f5f5f5]">F8</span>
-      </div>
+      </button>
       <div className={`${darkBtn} left-[764px] top-[961px] w-[177px] h-[46px]`}>Печать последних QR</div>
       <div className={`${darkBtn} left-[949px] top-[961px] w-[144px] h-[46px]`}>Печать прочека</div>
     </>
@@ -2664,13 +2665,13 @@ function PhoneModal({ onClose, onSuccess }: { onClose: () => void; onSuccess?: (
 
 // ─── Card Scan Modal ──────────────────────────────────────────────────────────
 
-function CardScanModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function CardScanModal({ onClose, onSuccess, title = "Считайте карту" }: { onClose: () => void; onSuccess: (card: string) => void; title?: string }) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && value.trim()) onSuccess();
+    if (e.key === "Enter" && value.trim()) onSuccess(value.trim());
     if (e.key === "Escape") onClose();
   };
 
@@ -2693,11 +2694,12 @@ function CardScanModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
         {/* Title */}
         <p className="absolute font-bold text-[24px] text-[#2b2b2b] text-center whitespace-nowrap"
           style={{ top: 60, left: "50%", transform: "translateX(-50%)", fontFamily: "Raleway, sans-serif" }}>
-          Считайте карту
+          {title}
         </p>
         {/* Input field */}
         <div className="absolute flex items-center rounded-[10px] transition-shadow focus-within:ring-2 focus-within:ring-[#47d465]/30"
-          style={{ left: 30, top: 112, width: 536, height: 60, backgroundColor: "#f8f8f8" }}>
+          style={{ left: 30, top: 112, width: 536, height: 60, backgroundColor: "#f8f8f8" }}
+          onDoubleClick={() => onSuccess(value.trim() || genCardNumber())}>
           <input
             ref={inputRef}
             type="text"
@@ -3866,6 +3868,268 @@ function AdminScreen({ onClose, onClientInfo }: { onClose: () => void; onClientI
   );
 }
 
+// ─── Debts / returns helpers ─────────────────────────────────────────────────
+// Prototype data: a card number ending in "0" has no debts and nothing to return,
+// any other number gets generated sample data (so both outcomes can be demoed).
+
+type MenuAction = "debts" | "returnCard" | "returnCheck" | "returnCarrier";
+
+const cardHasData = (card: string) => !card.trim().endsWith("0");
+const genCardNumber = () => Math.random().toString(16).slice(2, 9).toUpperCase().padEnd(7, "A") + String(1 + Math.floor(Math.random() * 9));
+
+const DEBT_SAMPLES = [
+  { name: "Долг: просрочка проката", price: 150 },
+  { name: "Долг: штраф за утерю браслета", price: 300 },
+  { name: "Долг: доплата за время", price: 200 },
+];
+const debtsForCard = (card: string) =>
+  cardHasData(card) ? DEBT_SAMPLES.slice(0, 1 + (card.trim().charCodeAt(card.trim().length - 1) % 3)) : [];
+
+interface ReturnRow {
+  id: number; name: string; card: string; sold: Date; validTo: Date | null;
+  qty: number; rest: number; price: number; cashbox: string; check: string;
+  payments: { method: string; sum: number }[]; manager?: boolean;
+}
+const rowSum = (r: ReturnRow) => r.payments.reduce((s, p) => s + p.sum, 0);
+
+function buildReturnRows(mode: "card" | "check", card: string): ReturnRow[] {
+  const now = new Date();
+  const at = (h: number, m: number) => { const d = new Date(now); d.setHours(h, m, 0, 0); return d; };
+  const valid = new Date(now); valid.setFullYear(valid.getFullYear() + 1);
+  if (mode === "card") {
+    return [
+      { id: 1, name: "Депозит", card, sold: at(10, 12), validTo: null, qty: 1, rest: 1400, price: 1400, cashbox: "Касса 1", check: "10231", payments: [{ method: "Наличные", sum: 1400 }] },
+      { id: 2, name: "Безлимит", card, sold: at(11, 40), validTo: valid, qty: 1, rest: 1, price: 800, cashbox: "Касса 1", check: "10234", payments: [{ method: "Безналичные", sum: 500 }, { method: "Бонусы", sum: 300 }] },
+      { id: 3, name: "Входной билет 1 час", card, sold: at(12, 5), validTo: valid, qty: 2, rest: 2, price: 250, cashbox: "Касса 2", check: "10240", payments: [{ method: "Наличные", sum: 500 }], manager: true },
+    ];
+  }
+  return [
+    { id: 1, name: "Входной билет 1 час", card: "4AB6EC76", sold: at(10, 12), validTo: valid, qty: 2, rest: 2, price: 250, cashbox: "Касса 1", check: "10231", payments: [{ method: "Наличные", sum: 500 }] },
+    { id: 2, name: "Безлимит", card: "7C21D9A0", sold: at(10, 12), validTo: valid, qty: 1, rest: 1, price: 800, cashbox: "Касса 1", check: "10231", payments: [{ method: "Безналичные", sum: 800 }] },
+    { id: 3, name: "Депозит", card: "9F3B11E4", sold: at(13, 27), validTo: null, qty: 1, rest: 1400, price: 1400, cashbox: "Касса 2", check: "10244", payments: [{ method: "Наличные", sum: 1000 }, { method: "Безналичные", sum: 400 }] },
+    { id: 4, name: "Карта", card: "5D0E77B2", sold: at(14, 3), validTo: null, qty: 1, rest: 1, price: 150, cashbox: "Касса 2", check: "10247", payments: [{ method: "Наличные", sum: 150 }] },
+    { id: 5, name: "Браслет", card: "2E8A40C1", sold: at(15, 30), validTo: valid, qty: 1, rest: 1, price: 350, cashbox: "Касса 1", check: "10250", payments: [{ method: "Безналичные", sum: 350 }], manager: true },
+  ];
+}
+
+const toLocalInput = (d: Date) => `${d.getFullYear()}-${adPad(d.getMonth() + 1)}-${adPad(d.getDate())}T${adPad(d.getHours())}:${adPad(d.getMinutes())}`;
+const fmtRowDate = (d: Date | null) => (d ? `${adPad(d.getDate())}.${adPad(d.getMonth() + 1)}.${d.getFullYear()} ${adPad(d.getHours())}:${adPad(d.getMinutes())}` : "");
+
+function RetCheckbox({ checked, onChange, label, dark }: { checked: boolean; onChange: () => void; label?: string; dark: boolean }) {
+  const c = th(dark);
+  return (
+    <button role="checkbox" aria-checked={checked} aria-label={label ?? "Выбрать позицию"} onClick={onChange}
+      className="group flex items-center gap-[10px] cursor-pointer select-none outline-none rounded-[6px] focus-visible:ring-2 focus-visible:ring-[#47d465]"
+      style={{ color: c.textPrimary }}>
+      <span className="flex items-center justify-center size-[22px] rounded-[5px] shrink-0 transition-colors duration-150 group-hover:bg-[#47d465]/20 group-active:bg-[#47d465]/35"
+        style={{ boxShadow: "inset 0 0 0 1.5px #47d465", backgroundColor: checked ? "#47d465" : undefined }}>
+        {checked && <svg viewBox="0 0 20 20" className="size-full" fill="none"><path d="M4 9.5L8.5 14L16 6" stroke="white" strokeWidth="1.8" strokeLinecap="round" /></svg>}
+      </span>
+      {label && <span className="text-[15px]">{label}</span>}
+    </button>
+  );
+}
+
+const RET_COLS = "44px 1.5fr 1fr 1.35fr 1.35fr 0.8fr 0.8fr 0.8fr 0.9fr 0.9fr";
+const RET_SCROLL = "overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#47d465] [&::-webkit-scrollbar-thumb]:rounded-full";
+
+function ReturnWindow({ mode, card, dark, onClose, onDone }: {
+  mode: "card" | "check"; card?: string; dark: boolean; onClose: () => void; onDone: (summary: { count: number; sum: number }) => void;
+}) {
+  const c = th(dark);
+  const allRows = useRef(buildReturnRows(mode, card ?? "")).current;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+  const [from, setFrom] = useState(toLocalInput(today));
+  const [to, setTo] = useState(toLocalInput(tomorrow));
+  const [cashbox, setCashbox] = useState("all");
+  const [checkNo, setCheckNo] = useState("");
+  const [manager, setManager] = useState(false);
+  const [checked, setChecked] = useState<Set<number>>(new Set());
+  const [activeId, setActiveId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const fromTs = new Date(from).getTime();
+  const toTs = new Date(to).getTime();
+  const rows = allRows.filter((r) =>
+    (mode === "card" || cashbox === "all" || r.cashbox === cashbox) &&
+    (isNaN(fromTs) || r.sold.getTime() >= fromTs) && (isNaN(toTs) || r.sold.getTime() < toTs) &&
+    (!checkNo.trim() || r.check.includes(checkNo.trim())) && (manager || !r.manager));
+  const selectedRows = rows.filter((r) => checked.has(r.id));
+  const allChecked = rows.length > 0 && selectedRows.length === rows.length;
+  const total = selectedRows.reduce((s, r) => s + rowSum(r), 0);
+  const active = rows.find((r) => r.id === activeId) ?? null;
+
+  const toggle = (id: number) => setChecked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggleAll = () => setChecked(allChecked ? new Set() : new Set(rows.map((r) => r.id)));
+
+  const mint = dark ? "#1f4a2a" : "#dffbe6";
+  const fieldCls = "h-[48px] rounded-[10px] px-[14px] text-[15px] outline-none cursor-pointer transition-[background-color,box-shadow] duration-150 focus:shadow-[inset_0_0_0_1.5px_#47d465] " + (dark ? "hover:bg-[#444443]" : "hover:bg-[#efefef]");
+  const fieldStyle: React.CSSProperties = { backgroundColor: c.inputBg, color: c.textPrimary, colorScheme: dark ? "dark" : "light" };
+  const label = (t: string) => <span className="text-[15px]" style={{ color: c.textSec }}>{t}</span>;
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 60 }}>
+      <div className="absolute inset-0 bg-[#323232] opacity-43" onClick={onClose} />
+      <div className="relative flex flex-col rounded-[10px] transition-colors duration-300"
+        style={{ width: 1180, height: 800, padding: "30px 32px 28px", backgroundColor: c.sidebarBg }}>
+        <button onClick={onClose} aria-label="Закрыть"
+          className="absolute flex items-center justify-center size-[36px] rounded-[8px] cursor-pointer select-none outline-none transition-all duration-150 hover:bg-black/10 active:bg-black/15 active:scale-90 focus-visible:shadow-[inset_0_0_0_2px_#47d465]"
+          style={{ right: 22, top: 22 }}>
+          <svg viewBox="0 0 24 24" className="size-[20px]" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke={c.textPrimary} strokeWidth="2.2" strokeLinecap="round" /></svg>
+        </button>
+
+        <div className="shrink-0">
+          <p className="font-bold text-[24px]" style={{ color: c.textPrimary }}>{mode === "card" ? "Возврат по карте" : "Возврат по чеку"}</p>
+          {mode === "card" && <p className="text-[14px]" style={{ color: c.textSec, marginTop: 4 }}>Карта {card}</p>}
+        </div>
+
+        <div className="flex items-center shrink-0" style={{ gap: 14, marginTop: 22 }}>
+          {mode === "check" && (
+            <>
+              {label("Касса")}
+              <div className="relative" style={{ width: 170 }}>
+                <select value={cashbox} onChange={(e) => setCashbox(e.target.value)} aria-label="Касса" className={`${fieldCls} w-full appearance-none pr-[38px]`} style={fieldStyle}>
+                  <option value="all">Все кассы</option><option value="Касса 1">Касса 1</option><option value="Касса 2">Касса 2</option>
+                </select>
+                <span className="absolute pointer-events-none" style={{ right: 12, top: 15, color: c.textPrimary }}><AdChevron up={false} /></span>
+              </div>
+            </>
+          )}
+          {label("Дата продажи")}{label("С")}
+          <input type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Дата продажи с" className={fieldCls} style={{ ...fieldStyle, width: 214 }} />
+          {label("До")}
+          <input type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Дата продажи до" className={fieldCls} style={{ ...fieldStyle, width: 214 }} />
+          {mode === "check" && (
+            <>
+              {label("Номер чека")}
+              <input value={checkNo} onChange={(e) => setCheckNo(e.target.value.replace(/\D/g, ""))} aria-label="Номер чека" className={`${fieldCls} cursor-text`} style={{ ...fieldStyle, width: 110 }} />
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between shrink-0" style={{ marginTop: 18 }}>
+          <RetCheckbox checked={allChecked} onChange={toggleAll} label="Выделить всё" dark={dark} />
+          <RetCheckbox checked={manager} onChange={() => setManager((m) => !m)} label="Операции управляющего" dark={dark} />
+        </div>
+
+        <div className="flex flex-1 min-h-0" style={{ gap: 14, marginTop: 14 }}>
+          <div className="flex-1 min-w-0 flex flex-col rounded-[10px] overflow-hidden" style={{ boxShadow: `inset 0 0 0 1px ${c.divider}` }}>
+            <div className="grid items-center shrink-0 text-[13px] font-semibold" style={{ gridTemplateColumns: RET_COLS, height: 42, backgroundColor: c.inputBg, color: c.textSec }}>
+              <span />{["Название", "Карта", "Дата продажи", "Действ. до", "Кол-во", "Остаток", "Цена", "Имя кассы", "Номер чека"].map((h) => <span key={h} className="truncate pr-[6px]">{h}</span>)}
+            </div>
+            <div className={`flex-1 min-h-0 ${RET_SCROLL}`}>
+              {rows.length === 0 && (
+                <p className="text-center text-[14px]" style={{ color: c.textSec, padding: "40px 20px" }}>Нет позиций, доступных к возврату</p>
+              )}
+              {rows.map((r) => {
+                const isActive = r.id === activeId;
+                return (
+                  <div key={r.id} onClick={() => setActiveId(r.id)}
+                    className={`grid items-center cursor-pointer select-none transition-colors duration-150 text-[13px] ${isActive ? "" : dark ? "hover:bg-white/5 active:bg-white/10" : "hover:bg-black/[0.035] active:bg-black/[0.07]"}`}
+                    style={{ gridTemplateColumns: RET_COLS, height: 50, color: c.textPrimary, backgroundColor: isActive ? mint : undefined, borderTop: `1px solid ${c.divider}`, fontFeatureSettings: '"lnum","pnum"' }}>
+                    <span className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                      <RetCheckbox checked={checked.has(r.id)} onChange={() => toggle(r.id)} dark={dark} />
+                    </span>
+                    <span className="truncate pr-[6px] font-semibold">{r.name}{r.manager && <span className="ml-[6px] text-[10px] font-normal opacity-60">упр.</span>}</span>
+                    <span className="truncate pr-[6px]">{r.card}</span>
+                    <span className="truncate pr-[6px]">{fmtRowDate(r.sold)}</span>
+                    <span className="truncate pr-[6px]">{fmtRowDate(r.validTo)}</span>
+                    <span>{r.qty}</span><span>{r.rest}</span><span>{r.price}</span>
+                    <span className="truncate pr-[6px]">{r.cashbox}</span><span>{r.check}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col rounded-[10px] overflow-hidden shrink-0" style={{ width: 250, boxShadow: `inset 0 0 0 1px ${c.divider}` }}>
+            <div className="grid items-center shrink-0 text-[13px] font-semibold" style={{ gridTemplateColumns: "1.3fr 0.8fr", height: 42, backgroundColor: c.inputBg, color: c.textSec, padding: "0 12px" }}>
+              <span>Процессинг</span><span className="text-right">Сумма</span>
+            </div>
+            <div className={`flex-1 min-h-0 ${RET_SCROLL}`}>
+              {active?.payments.map((p) => (
+                <div key={p.method} className="grid items-center text-[13px]" style={{ gridTemplateColumns: "1.3fr 0.8fr", height: 50, padding: "0 12px", color: c.textPrimary, borderTop: `1px solid ${c.divider}`, backgroundColor: mint }}>
+                  <span>{p.method}</span><span className="text-right font-semibold">{p.sum}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between shrink-0" style={{ marginTop: 20 }}>
+          <p className="text-[15px]" style={{ color: c.textSec }}>
+            Выбрано позиций: <b style={{ color: c.textPrimary }}>{selectedRows.length}</b> · К возврату: <b style={{ color: c.textPrimary }}>{total} ₽</b>
+          </p>
+          <div className="flex" style={{ gap: 12 }}>
+            <button onClick={() => selectedRows.length > 0 && onDone({ count: selectedRows.length, sum: total })}
+              className={`h-[56px] rounded-[10px] text-[15px] font-semibold text-white bg-[#47d465] select-none outline-none transition-all duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#47d465] ${selectedRows.length > 0 ? "cursor-pointer hover:bg-[#3dc05a] active:bg-[#30a84a] active:scale-[0.98]" : "opacity-45 cursor-default"}`}
+              style={{ width: 200 }}>
+              Возврат
+            </button>
+            <button onClick={onClose}
+              className={`relative h-[56px] rounded-[10px] text-[15px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#47d465] ${dark ? "hover:bg-white/10 active:bg-white/15" : "hover:bg-[#f0fdf4] active:bg-[#dcfce7]"}`}
+              style={{ width: 200, color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+              Отмена
+              <span className="absolute top-[4px] right-[10px] text-[9px] opacity-50" style={{ color: c.textSec }}>Esc</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Result / error dialog. With `copyValue` it shows the card number with a copy button.
+function NoticeModal({ dark, title, text, copyValue, onClose }: { dark: boolean; title: string; text: string; copyValue?: string; onClose: () => void }) {
+  const c = th(dark);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" || e.key === "Enter") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  useEffect(() => { if (!copied) return; const t = setTimeout(() => setCopied(false), 1500); return () => clearTimeout(t); }, [copied]);
+  const copy = () => {
+    try { void navigator.clipboard?.writeText(copyValue ?? ""); } catch { /* clipboard unavailable — still show feedback */ }
+    setCopied(true);
+  };
+  return (
+    <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 70 }}>
+      <div className="absolute inset-0 bg-[#323232] opacity-43" onClick={onClose} />
+      <div role="alertdialog" aria-label={title} className="relative rounded-[10px] transition-colors duration-300" style={{ width: 596, padding: "40px 40px 40px", backgroundColor: c.sidebarBg }}>
+        <button onClick={onClose} aria-label="Закрыть"
+          className="absolute flex items-center justify-center size-[36px] rounded-[8px] cursor-pointer select-none outline-none transition-all duration-150 hover:bg-black/10 active:bg-black/15 active:scale-90 focus-visible:shadow-[inset_0_0_0_2px_#47d465]"
+          style={{ right: 20, top: 20 }}>
+          <svg viewBox="0 0 24 24" className="size-[20px]" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke={c.textPrimary} strokeWidth="2.2" strokeLinecap="round" /></svg>
+        </button>
+        <p className="font-bold text-[24px] text-center" style={{ color: c.textPrimary }}>{title}</p>
+        <p className="text-[16px] text-center leading-[1.4]" style={{ color: c.textSec, marginTop: 16 }}>{text}</p>
+        {copyValue && (
+          <div className="flex items-center rounded-[10px]" style={{ marginTop: 24, height: 56, padding: "0 8px 0 16px", backgroundColor: c.inputBg }}>
+            <span className="flex-1 text-[16px] font-semibold select-text" style={{ color: c.textPrimary, fontFeatureSettings: '"lnum","pnum"' }}>{copyValue}</span>
+            <button onClick={copy}
+              className={`h-[40px] px-[14px] rounded-[8px] text-[14px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-[#47d465] ${dark ? "hover:bg-white/10 active:bg-white/15" : "hover:bg-black/5 active:bg-black/10"}`}
+              style={{ color: copied ? "#47d465" : c.textPrimary }}>
+              {copied ? "Скопировано" : "Копировать номер карты"}
+            </button>
+          </div>
+        )}
+        <button onClick={onClose} autoFocus
+          className={`w-full h-[56px] rounded-[10px] text-[16px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#47d465] ${dark ? "hover:bg-white/10 active:bg-white/15" : "hover:bg-[#f0fdf4] active:bg-[#dcfce7]"}`}
+          style={{ marginTop: 24, color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+          Закрыть
+        </button>
+      </div>
+    </div>
+  );
+}
+
 type PendingAdd = { kind: "add"; product: Product; qty: number } | { kind: "qtyModal"; product: Product };
 
 function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onLogout: () => void; requireRegistration: boolean }) {
@@ -3881,6 +4145,9 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
   const [qtyProduct, setQtyProduct]           = useState<Product | null>(null);
   const [menuOpen, setMenuOpen]               = useState(false);
   const [showAdmin, setShowAdmin]             = useState(false);
+  const [scanFor, setScanFor]                 = useState<"debts" | "returnCard" | "returnCarrier" | null>(null);
+  const [returnWin, setReturnWin]             = useState<{ mode: "card"; card: string } | { mode: "check" } | null>(null);
+  const [notice, setNotice]                   = useState<{ title: string; text: string; copyValue?: string } | null>(null);
   useEffect(() => { if (!adminMode) setShowAdmin(false); }, [adminMode]);
   const effectiveDark = dark || adminMode;
   const c = th(effectiveDark);
@@ -3936,6 +4203,29 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
     setQtyProduct(product);
   };
 
+  const handleAction = (a: MenuAction) => {
+    setMenuOpen(false);
+    if (a === "returnCheck") setReturnWin({ mode: "check" });
+    else setScanFor(a);
+  };
+
+  const handleScanned = (card: string) => {
+    const purpose = scanFor;
+    setScanFor(null);
+    if (purpose === "debts") {
+      const debts = debtsForCard(card);
+      if (debts.length === 0) { setNotice({ title: "Долгов нет", text: "На этой карте нет задолженностей.", copyValue: card }); return; }
+      setCartItems((prev) => [...prev, ...debts.map((d) => ({ id: nextCartId++, productId: 0, name: d.name, price: d.price, kind: "debt" as const, card }))]);
+    } else if (purpose === "returnCard") {
+      if (!cardHasData(card)) { setNotice({ title: "Нет товаров к возврату", text: "На этой карте нет товаров, доступных к возврату.", copyValue: card }); return; }
+      setReturnWin({ mode: "card", card });
+    } else if (purpose === "returnCarrier") {
+      if (!cardHasData(card)) { setNotice({ title: "Ошибка", text: "Данная карта не найдена в списке доступных к возврату товаров", copyValue: card }); return; }
+      if (cartItems.some((i) => i.kind === "return-carrier" && i.card === card)) { setNotice({ title: "Карта уже добавлена", text: "Эта карта уже есть в списке к возврату.", copyValue: card }); return; }
+      setCartItems((prev) => [...prev, { id: nextCartId++, productId: 0, name: `Возврат носителя ${card}`, price: -100, kind: "return-carrier" as const, card }]);
+    }
+  };
+
   return (
     <div className="absolute inset-0 transition-colors duration-300" style={{ backgroundColor: c.screenBg }}>
       <LeftSidebar dark={effectiveDark} adminMode={adminMode} onLogout={onLogout} onUserPlus={() => setShowPhone(true)}
@@ -3949,11 +4239,12 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
 
       {menuOpen && (
         <SidebarMenu dark={effectiveDark} onClose={() => setMenuOpen(false)}
-          onClientInfo={() => { setShowCardScan(true); setMenuOpen(false); }} />
+          onClientInfo={() => { setShowCardScan(true); setMenuOpen(false); }}
+          onAction={handleAction} />
       )}
 
       <ProductGrid dark={effectiveDark} onAdd={handleProductClick} onLongPressAdd={handleLongPressAdd} />
-      <BottomBar dark={effectiveDark} onClientInfo={() => setShowCardScan(true)} />
+      <BottomBar dark={effectiveDark} onClientInfo={() => setShowCardScan(true)} onAction={handleAction} />
 
       {showAdmin && adminMode && (
         <AdminScreen onClose={() => setShowAdmin(false)} onClientInfo={() => setShowCardScan(true)} />
@@ -3974,6 +4265,7 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
         onClear={clearCart}
         onDeleteItem={deleteItem}
         onCheckout={() => cartItems.length > 0 && setShowPayment(true)}
+        onRefund={clearCart}
         client={currentClient}
         onEditClient={currentClient ? () => setGateStage("register") : undefined}
       />
@@ -4025,6 +4317,21 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
       {showClientInfo && (
         <ClientInfoScreen onClose={() => setShowClientInfo(false)} />
       )}
+      {scanFor && (
+        <CardScanModal
+          title={scanFor === "debts" ? "Считайте карту для гашения долгов" : scanFor === "returnCarrier" ? "Считайте карту для возврата носителя" : "Считайте карту для возврата"}
+          onClose={() => setScanFor(null)}
+          onSuccess={handleScanned}
+        />
+      )}
+      {returnWin && (
+        <ReturnWindow
+          mode={returnWin.mode} card={returnWin.mode === "card" ? returnWin.card : undefined} dark={effectiveDark}
+          onClose={() => setReturnWin(null)}
+          onDone={({ count, sum }) => { setReturnWin(null); setNotice({ title: "Возврат выполнен", text: `Позиций: ${count}. Сумма к возврату: ${sum} ₽.` }); }}
+        />
+      )}
+      {notice && <NoticeModal dark={effectiveDark} {...notice} onClose={() => setNotice(null)} />}
 
       {/* Mandatory-registration gate screens — hidden (not unmounted, so any
           in-progress typing survives) while the side menu is open; per spec,
@@ -4122,7 +4429,7 @@ export default function App() {
           <LoginPasswordScreen dark={false} onLogin={() => setScreen("select-installation")} onSwitchToPin={() => setScreen("login-pin")} />
         )}
         {screen === "login-pin" && (
-          <LoginPinScreen dark={false} onLogin={() => setScreen("select-installation")} onSwitchToPassword={() => setScreen("login-password")} />
+          <LoginPinScreen dark={false} onLogin={() => setScreen("pos")} onSwitchToPassword={() => setScreen("login-password")} />
         )}
         {screen === "select-installation" && (
           <SelectInstallationScreen dark={false} onOk={() => setScreen("settings")} onCancel={() => setScreen("login-password")} />
