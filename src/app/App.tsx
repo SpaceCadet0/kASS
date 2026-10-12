@@ -573,9 +573,9 @@ function SettingsScreen({ dark, requireRegistration, onToggleRequireRegistration
 
 // ─── POS Sub-components ───────────────────────────────────────────────────────
 
-function LeftSidebar({ dark, adminMode, onLogout, onUserPlus, onMenu, onHome, homeActive, onShield }: {
+function LeftSidebar({ dark, adminMode, onLogout, onUserPlus, onMenu, onHome, homeActive, onShield, onSettings, settingsOpen }: {
   dark: boolean; adminMode: boolean; onLogout: () => void; onUserPlus: () => void; onMenu?: () => void;
-  onHome?: () => void; homeActive?: boolean; onShield?: () => void;
+  onHome?: () => void; homeActive?: boolean; onShield?: () => void; onSettings?: () => void; settingsOpen?: boolean;
 }) {
   const c = th(dark);
   const ic = dark ? "#ffffff" : "black";
@@ -624,7 +624,11 @@ function LeftSidebar({ dark, adminMode, onLogout, onUserPlus, onMenu, onHome, ho
         {adminMode && (
           <button onClick={onShield} aria-label="Режим администратора" className={`${iconBtn} outline-none`}><IconShield /></button>
         )}
-        <div className={iconBtn}><IconSettingsGear color={ic} /></div>
+        <button onClick={onSettings} aria-label="Действия с кассой" aria-expanded={settingsOpen}
+          className={`${iconBtn} -m-[8px] p-[8px] rounded-[8px] outline-none focus-visible:ring-2 focus-visible:ring-[#47d465]`}
+          style={{ backgroundColor: settingsOpen ? (dark ? "#3a3a39" : "#ececec") : undefined }}>
+          <IconSettingsGear color={settingsOpen ? "#47d465" : ic} />
+        </button>
         <div className={iconBtn}><IconMessage color={ic} /></div>
         <button onClick={onLogout} className={iconBtn}><IconLogout color={ic} /></button>
       </div>
@@ -677,7 +681,7 @@ const MENU_SECTIONS: MenuSection[] = [
         { label: "Блокировать", action: "cardBlock" },
         { label: "Разблокировать", action: "cardUnblock" },
         { label: "Расширить билет", badge: "PageUp" },
-        { label: "Слияние счетов клиентов" },
+        { label: "Слияние счетов клиентов", action: "mergeAccounts" },
       ],
   ]},
   { key: "preorder", label: "Предварительные заказы", icon: "card", leaves: [
@@ -3855,7 +3859,7 @@ function AdminScreen({ onClose, onClientInfo }: { onClose: () => void; onClientI
 // Prototype data: a card number ending in "0" has no debts and nothing to return,
 // any other number gets generated sample data (so both outcomes can be demoed).
 
-type MenuAction = "debts" | "returnCard" | "returnCheck" | "returnCarrier" | "pledgeTake" | "pledgeReturn" | "pledgeCells" | "clientSearch" | "cardHistory" | "preorders" | "cardExtra" | "cardExtraSearch" | "service" | "cardBlock" | "cardUnblock";
+type MenuAction = "debts" | "returnCard" | "returnCheck" | "returnCarrier" | "pledgeTake" | "pledgeReturn" | "pledgeCells" | "clientSearch" | "cardHistory" | "preorders" | "cardExtra" | "cardExtraSearch" | "service" | "cardBlock" | "cardUnblock" | "mergeAccounts";
 
 const cardHasData = (card: string) => !card.trim().endsWith("0");
 const genCardNumber = () => Math.random().toString(16).slice(2, 9).toUpperCase().padEnd(7, "A") + String(1 + Math.floor(Math.random() * 9));
@@ -4264,6 +4268,52 @@ const TILL_SERVICES: { name: string; price: number }[] = [
   { name: "Общая зона", price: 250 },
   { name: "Расписание для мероприятий", price: 400 },
 ];
+
+// Second-level "Действия с кассой" flyout opened from the sidebar gear icon.
+const TILL_ACTIONS: { label: string; disabled?: string; title: string; text: string }[] = [
+  { label: "Сверка итогов", title: "Сверка итогов выполнена", text: "Итоги по банковскому терминалу сверены, расхождений нет." },
+  { label: "Печать слипов", disabled: "Нет слипов для печати", title: "", text: "" },
+  { label: "Открыть смену", disabled: "Смена уже открыта", title: "", text: "" },
+  { label: "Сменить режим", title: "Режим кассы изменён", text: "Касса переключена в другой режим работы." },
+  { label: "Задать бобину", title: "Бобина задана", text: "Новая бобина чековой ленты зарегистрирована." },
+  { label: "Вычесть", title: "Операция выполнена", text: "Операция «Вычесть» проведена по кассе." },
+];
+
+function TillActionsFlyout({ dark, adminMode, onClose, onAction }: { dark: boolean; adminMode: boolean; onClose: () => void; onAction: (a: (typeof TILL_ACTIONS)[number]) => void }) {
+  const c = th(dark);
+  useEscape(onClose);
+  const gearTop = adminMode ? 862 : 838;
+  // Same look as the side menu's second-level panel (SidebarMenu submenu).
+  const cardCls = dark
+    ? "bg-[#303030] hover:bg-[#3a3a3a] active:bg-[#444444] active:shadow-[inset_0_0_0_1.5px_#ffffff]"
+    : "bg-[#f5f5f5] hover:bg-[#ebebeb] active:bg-[#e2e2e2] active:shadow-[inset_0_0_0_1.5px_#2b2b2b]";
+  return (
+    <>
+      <div className="absolute inset-0" style={{ zIndex: 39, backgroundColor: "rgba(50,50,50,0.38)" }} onClick={onClose} />
+      <div role="menu" aria-label="Действия с кассой" className="absolute flex flex-col rounded-r-[12px] transition-colors duration-300"
+        style={{ zIndex: 40, left: 73, bottom: Math.max(16, 1024 - gearTop - 24 - 60), width: 366, maxHeight: 1024, backgroundColor: c.sidebarBg, boxShadow: "0 0 28px rgba(0,0,0,0.14)", animation: "tillFlyoutIn 160ms ease-out" }}>
+        <style>{"@keyframes tillFlyoutIn{from{transform:translateX(-8px);opacity:0}to{transform:none;opacity:1}}"}</style>
+        <div className="flex items-center justify-between shrink-0" style={{ padding: "26px 16px 14px 20px" }}>
+          <p className="font-bold text-[22px]" style={{ color: c.textPrimary }}>Действия с кассой</p>
+          <button onClick={onClose} aria-label="Закрыть"
+            className="flex items-center justify-center size-[36px] rounded-[8px] cursor-pointer select-none outline-none transition-all duration-150 hover:bg-black/10 active:bg-black/15 active:scale-90 focus-visible:shadow-[inset_0_0_0_2px_#47d465]">
+            <svg viewBox="0 0 24 24" className="size-[20px]" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke={c.textPrimary} strokeWidth="2.2" strokeLinecap="round" /></svg>
+          </button>
+        </div>
+        <div className="flex flex-col gap-[10px] overflow-y-auto" style={{ padding: "0 16px 20px" }}>
+          {TILL_ACTIONS.map((a) => (
+            <button key={a.label} role="menuitem" disabled={!!a.disabled} onClick={() => onAction(a)}
+              className={`group relative text-left select-none outline-none rounded-[12px] transition-[background-color,box-shadow] duration-150 focus-visible:shadow-[inset_0_0_0_2px_#47d465] flex items-center justify-between ${a.disabled ? `${dark ? "bg-[#303030]" : "bg-[#f5f5f5]"} opacity-45 cursor-not-allowed` : `${cardCls} cursor-pointer`}`}
+              style={{ height: 72, padding: "0 18px", color: c.textPrimary }}>
+              <span className="text-[18px] font-medium leading-[1.2]">{a.label}</span>
+              {a.disabled && <span className="shrink-0 ml-[12px] text-[12px]" style={{ color: c.textSec }}>{a.disabled}</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
 
 function PledgeCommentModal({ dark, type, onOk, onCancel }: { dark: boolean; type: PledgeType; onOk: (comment: string) => void; onCancel: () => void }) {
   const c = th(dark);
@@ -4878,6 +4928,100 @@ function PreorderScreen({ dark, onClose, onAddToSale }: { dark: boolean; onClose
   );
 }
 
+// ─── Merge client accounts ───────────────────────────────────────────────────
+type SampleClient = (typeof SAMPLE_CLIENTS)[number];
+const accountOf = (cl: SampleClient) => {
+  const k = cl.uid.charCodeAt(cl.uid.length - 1) % 5;
+  return { deposit: 500 + k * 300, bonuses: 50 + k * 40, tickets: 1 + (k % 3) };
+};
+
+function MergeAccountsWindow({ dark, onClose, onMerged }: { dark: boolean; onClose: () => void; onMerged: (left: SampleClient, right: SampleClient) => void }) {
+  const c = th(dark);
+  const [left, setLeft] = useState<SampleClient | null>(null);
+  const [right, setRight] = useState<SampleClient | null>(null);
+  const [searchSide, setSearchSide] = useState<"left" | "right" | null>(null);
+  useEscape(() => { if (!searchSide) onClose(); });
+
+  const same = !!left && !!right && left.uid === right.uid;
+  const ready = !!left && !!right && !same;
+  const status = !left || !right ? "Выберите клиентов с обеих сторон (слева и справа)"
+    : same ? "Нельзя объединить счёт клиента с самим собой — выберите другого клиента"
+    : `Счёт «${right.name}» будет присоединён к счёту «${left.name}». Правый счёт после слияния будет закрыт.`;
+
+  const side = (key: "left" | "right", title: string, cl: SampleClient | null, set: (v: SampleClient | null) => void) => {
+    const acc = cl ? accountOf(cl) : null;
+    return (
+      <div className="flex-1 min-w-0 flex flex-col rounded-[10px]" style={{ padding: "18px 20px", backgroundColor: c.inputBg, minHeight: 92 }}>
+        <div className="flex items-center justify-between" style={{ gap: 12 }}>
+          <p className="text-[15px] font-bold" style={{ color: c.textPrimary }}>{title}</p>
+          <div className="flex" style={{ gap: 8 }}>
+            {cl && (
+              <button onClick={() => set(null)}
+                className={`h-[44px] px-[14px] rounded-[10px] text-[14px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-[#47d465] ${dark ? "hover:bg-white/10 active:bg-white/15" : "hover:bg-black/5 active:bg-black/10"}`}
+                style={{ color: c.textSec }}>Очистить</button>
+            )}
+            <button onClick={() => setSearchSide(key)} className={winOutline(dark)} style={{ height: 44, padding: "0 18px", color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+              Поиск клиента…
+            </button>
+          </div>
+        </div>
+        {cl && acc && (
+          <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: "10px 20px", marginTop: 16, fontFeatureSettings: '"lnum","pnum"' }}>
+            {[["ФИО", cl.name], ["UID карты", cl.uid], ["Телефон", fmtPhone(cl.phone)], ["E-mail", cl.email],
+              ["Депозит", `${acc.deposit} ₽`], ["Бонусы", String(acc.bonuses)], ["Активные билеты", String(acc.tickets)], ["Бортовой номер", cl.board || "—"]].map(([k, v]) => (
+              <div key={k} className="min-w-0">
+                <p className="text-[12px]" style={{ color: c.textSec }}>{k}</p>
+                <p className="text-[15px] font-semibold truncate" style={{ color: c.textPrimary }}>{v}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const total = left && right && !same ? { deposit: accountOf(left).deposit + accountOf(right).deposit, bonuses: accountOf(left).bonuses + accountOf(right).bonuses, tickets: accountOf(left).tickets + accountOf(right).tickets } : null;
+
+  return (
+    <>
+      <WinFrame dark={dark} title="Слияние счетов клиентов" width={1180} onClose={onClose}>
+        <div className="flex items-start shrink-0" style={{ gap: 12, marginTop: 24 }}>
+          {side("left", "Левый счет", left, setLeft)}
+          <button onClick={() => { setLeft(right); setRight(left); }} aria-label="Поменять счета местами" disabled={!left && !right}
+            className={`shrink-0 self-start flex items-center justify-center size-[44px] rounded-[10px] select-none outline-none transition-all duration-150 focus-visible:ring-2 focus-visible:ring-[#47d465] ${!left && !right ? "opacity-35 cursor-default" : `cursor-pointer active:scale-90 ${dark ? "hover:bg-white/10 active:bg-white/15" : "hover:bg-black/5 active:bg-black/10"}`}`}
+            style={{ marginTop: 24 }}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none"><path d="M7 7h12l-3-3M17 17H5l3 3" stroke={c.textPrimary} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+          {side("right", "Правый счет", right, setRight)}
+        </div>
+        <div className="flex items-center justify-center rounded-[10px] shrink-0 text-center text-[16px] font-semibold"
+          style={{ marginTop: 20, minHeight: 56, padding: "12px 20px",
+            color: ready ? "#2fae4c" : "#e5484d",
+            backgroundColor: ready ? (dark ? "rgba(71,212,101,0.12)" : "#effcf2") : (dark ? "rgba(229,72,77,0.12)" : "#fdeeee"),
+            boxShadow: `inset 0 0 0 1px ${ready ? "rgba(71,212,101,0.5)" : "rgba(229,72,77,0.45)"}` }}>
+          {status}
+        </div>
+        {total && (
+          <p className="text-[14px] shrink-0" style={{ color: c.textSec, marginTop: 14, fontFeatureSettings: '"lnum","pnum"' }}>
+            После слияния: депозит <b style={{ color: c.textPrimary }}>{total.deposit} ₽</b> · бонусы <b style={{ color: c.textPrimary }}>{total.bonuses}</b> · активные билеты <b style={{ color: c.textPrimary }}>{total.tickets}</b>
+          </p>
+        )}
+        <div className="flex justify-end shrink-0" style={{ gap: 12, marginTop: 28 }}>
+          <button onClick={() => ready && left && right && onMerged(left, right)} className={winGreen(ready)} style={{ width: 230 }}>Объединить счета</button>
+          <button onClick={onClose} className={winOutline(dark)} style={{ width: 180, color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+            Отмена<span className="absolute top-[4px] right-[10px] text-[9px] opacity-50" style={{ color: c.textSec }}>Esc</span>
+          </button>
+        </div>
+      </WinFrame>
+      {searchSide && (
+        <ClientSearchWindow dark={dark} title={searchSide === "left" ? "Левый счет: поиск клиента" : "Правый счет: поиск клиента"}
+          onClose={() => setSearchSide(null)}
+          onOk={(cl) => { (searchSide === "left" ? setLeft : setRight)(cl); setSearchSide(null); }} />
+      )}
+    </>
+  );
+}
+
 type PendingAdd = { kind: "add"; product: Product; qty: number } | { kind: "qtyModal"; product: Product };
 
 function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onLogout: () => void; requireRegistration: boolean }) {
@@ -4906,6 +5050,8 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
   const [showClientSearch, setShowClientSearch] = useState(false);
   const [historyCard, setHistoryCard]         = useState<string | null>(null);
   const [showPreorders, setShowPreorders]     = useState(false);
+  const [tillMenu, setTillMenu]               = useState(false);
+  const [showMerge, setShowMerge]             = useState(false);
   const [returnWin, setReturnWin]             = useState<{ mode: "card"; card: string } | { mode: "check" } | null>(null);
   const [notice, setNotice]                   = useState<{ title: string; text: string; copyValue?: string } | null>(null);
   useEffect(() => { if (!adminMode) setShowAdmin(false); }, [adminMode]);
@@ -4972,6 +5118,7 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
     else if (a === "cardExtraSearch") setExtraSearch(true);
     else if (a === "service") setServicePick(true);
     else if (a === "cardBlock") setBlockSearch(true);
+    else if (a === "mergeAccounts") setShowMerge(true);
     else if (a === "cardExtra") { setExtraFor(null); setScanFor("cardExtra"); }
     else setScanFor(a);
   };
@@ -5033,10 +5180,12 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
   return (
     <div className="absolute inset-0 transition-colors duration-300" style={{ backgroundColor: c.screenBg }}>
       <LeftSidebar dark={effectiveDark} adminMode={adminMode} onLogout={onLogout} onUserPlus={() => setShowPhone(true)}
-        onMenu={() => setMenuOpen((v) => !v)}
+        onMenu={() => { setTillMenu(false); setMenuOpen((v) => !v); }}
         onHome={requireRegistration ? () => setHomeMode((v) => !v) : undefined}
         homeActive={homeMode}
         onShield={() => { setMenuOpen(false); setShowAdmin(true); }}
+        onSettings={() => { setMenuOpen(false); setTillMenu((v) => !v); }}
+        settingsOpen={tillMenu}
       />
       <TopBar dark={effectiveDark} adminMode={adminMode} onAdminToggle={() => setAdminMode((m) => !m)}
         activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
@@ -5050,6 +5199,14 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
       <ProductGrid dark={effectiveDark} onAdd={handleProductClick} onLongPressAdd={handleLongPressAdd} />
       <BottomBar dark={effectiveDark} onClientInfo={() => setShowCardScan(true)} onAction={handleAction} />
 
+      {showMerge && (
+        <MergeAccountsWindow dark={effectiveDark} onClose={() => setShowMerge(false)}
+          onMerged={(l, r) => { setShowMerge(false); setNotice({ title: "Счета объединены", text: `Счёт клиента ${r.name} присоединён к счёту ${l.name}.` }); }} />
+      )}
+      {tillMenu && (
+        <TillActionsFlyout dark={effectiveDark} adminMode={adminMode} onClose={() => setTillMenu(false)}
+          onAction={(a) => { setTillMenu(false); setNotice({ title: a.title, text: a.text }); }} />
+      )}
       {showPreorders && (
         <PreorderScreen dark={effectiveDark} onClose={() => setShowPreorders(false)}
           onAddToSale={(items) => setCartItems((prev) => [...prev, ...items.flatMap((i) => Array.from({ length: i.qty }, () => ({ id: nextCartId++, productId: 0, name: i.name, price: i.price })))])} />
