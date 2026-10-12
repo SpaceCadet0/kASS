@@ -575,9 +575,9 @@ function SettingsScreen({ dark, requireRegistration, onToggleRequireRegistration
 
 // ─── POS Sub-components ───────────────────────────────────────────────────────
 
-function LeftSidebar({ dark, adminMode, onLogout, onUserPlus, onMenu, onHome, homeActive }: {
+function LeftSidebar({ dark, adminMode, onLogout, onUserPlus, onMenu, onHome, homeActive, onShield }: {
   dark: boolean; adminMode: boolean; onLogout: () => void; onUserPlus: () => void; onMenu?: () => void;
-  onHome?: () => void; homeActive?: boolean;
+  onHome?: () => void; homeActive?: boolean; onShield?: () => void;
 }) {
   const c = th(dark);
   const ic = dark ? "#ffffff" : "black";
@@ -624,7 +624,7 @@ function LeftSidebar({ dark, adminMode, onLogout, onUserPlus, onMenu, onHome, ho
       {/* Bottom icon cluster: shield (admin only), settings, message, logout */}
       <div className="absolute flex flex-col gap-[29px]" style={{ left: 24, top: adminMode ? 809 : 838 }}>
         {adminMode && (
-          <div className={iconBtn}><IconShield /></div>
+          <button onClick={onShield} aria-label="Режим администратора" className={`${iconBtn} outline-none`}><IconShield /></button>
         )}
         <div className={iconBtn}><IconSettingsGear color={ic} /></div>
         <div className={iconBtn}><IconMessage color={ic} /></div>
@@ -932,8 +932,6 @@ function TopBar({ dark, adminMode, onAdminToggle, activeCategory, onCategoryChan
   );
 }
 
-const LONG_PRESS_MS = 550;
-
 function IconPlus({ color = "white" }: { color?: string }) {
   return (
     <svg fill="none" viewBox="0 0 24 24" className="size-5">
@@ -949,26 +947,6 @@ function ProductCard({ product, dark, onClick, onLongPressAdd }: { product: Prod
   // Colored cards keep a light pastel bg in both themes, so their text stays dark for contrast.
   const textColor = isColoredCard ? "#2b2b2b" : (dark ? "#f0f0f0" : "#2b2b2b");
 
-  const pressTimer = useRef<number | null>(null);
-  const longPressed = useRef(false);
-
-  const startPress = (e: { stopPropagation: () => void }) => {
-    e.stopPropagation();
-    longPressed.current = false;
-    pressTimer.current = window.setTimeout(() => {
-      longPressed.current = true;
-      onLongPressAdd?.(product);
-    }, LONG_PRESS_MS);
-  };
-  const endPress = (e: { stopPropagation: () => void }) => {
-    e.stopPropagation();
-    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
-    if (!longPressed.current) onClick(product);
-  };
-  const cancelPress = () => {
-    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
-  };
-
   return (
     <div onClick={() => onClick(product)}
       className="relative h-[146px] w-[227px] rounded-[10px] overflow-hidden cursor-pointer select-none transition-all duration-150 hover:scale-[1.025] hover:shadow-md active:scale-[0.97] active:shadow-sm"
@@ -980,12 +958,11 @@ function ProductCard({ product, dark, onClick, onLongPressAdd }: { product: Prod
             {product.priceLabel ?? `${product.price} ₽`}
           </p>
           <button
-            onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={cancelPress}
-            onTouchStart={startPress} onTouchEnd={endPress} onTouchCancel={cancelPress}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onLongPressAdd?.(product); }}
+            aria-label="Указать количество"
             className="flex items-center justify-center size-[40px] rounded-[10px] shrink-0 cursor-pointer transition-all duration-150 hover:opacity-80 active:opacity-60 active:scale-[0.92] select-none"
-            style={{ backgroundColor: "#2b2b2b" }}>
-            <IconPlus />
+            style={{ backgroundColor: dark && !isColoredCard ? "#ffffff" : "#2b2b2b" }}>
+            <IconPlus color={dark && !isColoredCard ? "#2b2b2b" : "white"} />
           </button>
         </div>
       </div>
@@ -997,39 +974,66 @@ function QuantityModal({ product, dark, onConfirm, onCancel }: { product: Produc
   const [value, setValue] = useState("1");
   const c = th(dark);
   const qty = Math.max(1, parseInt(value || "1", 10) || 1);
+  const step = (d: number) => setValue(String(Math.min(9999, Math.max(1, qty + d))));
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); if (e.key === "Enter") onConfirm(qty); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+      else if (e.key === "Enter") onConfirm(qty);
+      else if (e.key === "+" || e.key === "=") { e.preventDefault(); setValue(String(Math.min(9999, qty + 1))); }
+      else if (e.key === "Delete") { e.preventDefault(); setValue(String(Math.max(1, qty - 1))); }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [qty, onCancel, onConfirm]);
 
+  const stepBtn = "relative flex items-center justify-center h-[66px] w-[124px] rounded-[10px] cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-[#47d465]";
+
   return (
     <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 60 }}>
       <div className="absolute inset-0 bg-[#323232] opacity-43" onClick={onCancel} />
-      <div className="relative rounded-[10px] transition-colors duration-300" style={{ width: 596, padding: "35px 40px 40px", backgroundColor: c.sidebarBg }}>
-        <button onClick={onCancel}
+      <div className="relative rounded-[10px] transition-colors duration-300" style={{ width: 645, padding: "32px 33px 33px", backgroundColor: c.sidebarBg }}>
+        <button onClick={onCancel} aria-label="Закрыть"
           className="absolute cursor-pointer transition-opacity hover:opacity-60 active:opacity-40 select-none"
-          style={{ right: 24, top: 24, padding: 0, background: "none", border: "none" }}>
+          style={{ right: 28, top: 28, padding: 0, background: "none", border: "none" }}>
           <IconModalClose color={dark ? "#ffffff" : "#2b2b2b"} />
         </button>
-        <p className="font-bold text-[24px] text-center" style={{ color: c.textPrimary }}>Введите количество</p>
-        <div className="mt-[28px] rounded-[10px] px-4 py-[16px]" style={{ backgroundColor: c.inputBg }}>
-          <input
-            autoFocus type="text" inputMode="numeric" value={value}
-            onChange={(e) => setValue(e.target.value.replace(/[^\d]/g, ""))}
-            className="bg-transparent outline-none text-[18px] font-semibold w-full"
-            style={{ color: c.textPrimary }}
-          />
+        <p className="text-[14px] truncate" style={{ color: c.textSec, maxWidth: 480 }}>{product.name}</p>
+        <p className="font-bold text-[24px] text-center" style={{ color: c.textPrimary, marginTop: 6 }}>Введите количество</p>
+        <div className="flex items-center" style={{ marginTop: 30, gap: 12 }}>
+          <label className="flex-1 min-w-0 flex items-center rounded-[10px] cursor-text transition-shadow duration-150 focus-within:shadow-[inset_0_0_0_1.5px_#47d465]"
+            style={{ backgroundColor: c.inputBg, height: 66, padding: "0 20px" }}>
+            <input
+              autoFocus type="text" inputMode="numeric" value={value} aria-label="Количество"
+              onChange={(e) => setValue(e.target.value.replace(/[^\d]/g, "").slice(0, 4))}
+              onFocus={(e) => e.currentTarget.select()}
+              className="bg-transparent outline-none text-[18px] font-semibold"
+              style={{ color: c.textPrimary, width: `${Math.max(1, value.length)}ch` }}
+            />
+            <span className="text-[18px] font-semibold select-none" style={{ color: c.textPrimary }}>, 00</span>
+          </label>
+          <button onClick={() => step(-1)} aria-label="Уменьшить"
+            className={`${stepBtn} ${dark ? "hover:bg-white/15 active:bg-white/20" : "hover:bg-[#ececec] active:bg-[#e0e0e0]"}`}
+            style={{ backgroundColor: c.inputBg }}>
+            <span className="absolute text-[8px] opacity-60" style={{ top: 8, right: 14, color: c.textSec }}>Delete</span>
+            <svg viewBox="0 0 24 24" className="size-[22px]" fill="none"><path d="M5 12H19" stroke={c.textPrimary} strokeWidth="2.4" strokeLinecap="round" /></svg>
+          </button>
+          <span className="text-[16px] select-none" style={{ color: c.textPrimary }}>1</span>
+          <button onClick={() => step(1)} aria-label="Увеличить"
+            className={`${stepBtn} ${dark ? "hover:bg-white/15 active:bg-white/20" : "hover:bg-[#ececec] active:bg-[#e0e0e0]"}`}
+            style={{ backgroundColor: c.inputBg }}>
+            <span className="absolute text-[10px] opacity-60" style={{ top: 6, right: 14, color: c.textSec }}>+</span>
+            <svg viewBox="0 0 24 24" className="size-[22px]" fill="none"><path d="M12 5V19M5 12H19" stroke={c.textPrimary} strokeWidth="2.4" strokeLinecap="round" /></svg>
+          </button>
         </div>
-        <div className="mt-[24px] flex gap-[14px]">
+        <div className="flex" style={{ marginTop: 30, gap: 14 }}>
           <button onClick={() => onConfirm(qty)}
-            className="flex-1 h-[56px] rounded-[10px] text-[16px] font-semibold cursor-pointer select-none transition-all duration-150 hover:bg-[#47d465]/10 active:scale-[0.98]"
+            className="flex-1 h-[70px] rounded-[10px] text-[16px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 hover:bg-[#47d465]/10 active:bg-[#47d465]/20 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#47d465]"
             style={{ color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
             Ок
           </button>
           <button onClick={onCancel}
-            className="relative flex-1 h-[56px] rounded-[10px] text-[16px] font-semibold cursor-pointer select-none transition-all duration-150 hover:bg-black/5 active:scale-[0.98]"
+            className={`relative flex-1 h-[70px] rounded-[10px] text-[16px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#47d465] ${dark ? "hover:bg-white/10 active:bg-white/15" : "hover:bg-black/5 active:bg-black/10"}`}
             style={{ color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
             Отмена
             <span className="absolute top-[4px] right-[10px] text-[9px] opacity-50" style={{ color: c.textSec }}>Esc</span>
@@ -3236,6 +3240,632 @@ function CITextField({ label, required, value, onChange }: {
 
 // ─── POS Screen ───────────────────────────────────────────────────────────────
 
+// ─── Admin mode screen ────────────────────────────────────────────────────────
+// Opened by the shield icon while "Режим администратора" is on. Always dark.
+
+const AD_PANEL = "#2c2c2b";
+const AD_FIELD = "#3a3a39";
+const AD_LINE = "#4d4d4b";
+const AD_MUTED = "#9b9b99";
+const AD_BTN = "select-none cursor-pointer outline-none transition-[background-color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#47d465]";
+const AD_ROW = "select-none cursor-pointer outline-none transition-colors duration-150 focus-visible:bg-[#363635]";
+const AD_OUTLINE = `${AD_BTN} rounded-[10px] text-white bg-[#2e2e2d] shadow-[inset_0_0_0_1px_#47d465] hover:bg-[#3a3a39] active:bg-[#252524]`;
+const AD_NEUTRAL = `${AD_BTN} rounded-[10px] text-white bg-[#2e2e2d] hover:bg-[#3a3a39] active:bg-[#252524]`;
+const adGreen = (on: boolean) =>
+  `${AD_BTN} rounded-[10px] text-white font-semibold bg-[#47d465] ${on ? "hover:bg-[#3dc05a] active:bg-[#30a84a]" : "opacity-45 pointer-events-none"}`;
+const AD_SCROLL = "overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-[#4d4d4b] [&::-webkit-scrollbar-thumb]:bg-[#47d465] [&::-webkit-scrollbar-thumb]:rounded-full";
+
+const adPad = (n: number) => String(n).padStart(2, "0");
+const adFmtShort = (d: Date) => `${adPad(d.getDate())}.${adPad(d.getMonth() + 1)}.${String(d.getFullYear()).slice(2)}`;
+const adFmtFull = (d: Date) => `${adPad(d.getDate())}.${adPad(d.getMonth() + 1)}.${d.getFullYear()}`;
+const adHex = (len: number) => Array.from({ length: len }, () => Math.floor(Math.random() * 16).toString(16)).join("").toUpperCase();
+
+const AD_TABS = [
+  { id: "goods",    label: "Оформление товаров" },
+  { id: "cards",    label: "Регистрация карт в системе" },
+  { id: "discount", label: "Запись скидки" },
+  { id: "delDisc",  label: "Удаление скидки" },
+  { id: "pledge",   label: "Освободить ячейку залога" },
+  { id: "returns",  label: "Возврат товаров" },
+  { id: "staff",    label: "Карты сотрудников" },
+  { id: "reports",  label: "Отчеты" },
+];
+
+function AdQrIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="#8d8d8b" aria-hidden>
+      <path fillRule="evenodd" d="M2 2h8v8H2V2Zm2 2v4h4V4H4ZM14 2h8v8h-8V2Zm2 2v4h4V4h-4ZM2 14h8v8H2v-8Zm2 2v4h4v-4H4Z" />
+      <path d="M14 14h3v3h-3zM19 14h3v3h-3zM14 19h3v3h-3zM19 19h3v3h-3z" />
+    </svg>
+  );
+}
+
+function AdChevron({ up }: { up: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden>
+      <path d={up ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Dark "Считайте карту" popup over a blurred backdrop. Clicking the field simulates a
+// scan; typing a number and pressing Enter confirms manual entry.
+function AdminCardPopup({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
+  const [value, setValue] = useState("");
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+  return (
+    <div className="absolute inset-0 flex items-center justify-center"
+      style={{ zIndex: 60, backgroundColor: "rgba(20,20,20,0.55)", backdropFilter: "blur(10px)" }} onClick={onCancel}>
+      <div className="relative rounded-[10px]" style={{ width: 520, padding: "36px 26px 26px", backgroundColor: AD_PANEL }}
+        onClick={(e) => e.stopPropagation()}>
+        <button onClick={onCancel} aria-label="Закрыть"
+          className="absolute flex items-center justify-center size-[36px] rounded-[8px] cursor-pointer outline-none transition-all duration-150 hover:bg-white/10 active:bg-white/15 active:scale-90"
+          style={{ right: 14, top: 14 }}>
+          <svg viewBox="0 0 24 24" className="size-[20px]" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" /></svg>
+        </button>
+        <p className="text-center font-bold text-[22px] text-white">Считайте карту</p>
+        <input autoFocus value={value} onChange={(e) => setValue(e.target.value)}
+          placeholder="Двойной клик или F4 для разрешения ввода"
+          onClick={() => { if (!value) onSuccess(); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && value.trim()) onSuccess(); }}
+          className="mt-[26px] w-full h-[48px] rounded-[10px] px-[16px] text-[14px] text-white outline-none cursor-pointer placeholder:text-[#8a8a88] focus:ring-2 focus:ring-[#47d465]/40"
+          style={{ backgroundColor: AD_FIELD }} />
+        <button onClick={onCancel} className={`${AD_OUTLINE} relative mt-[22px] w-full h-[50px] text-[14px] font-semibold`}>
+          Отмена
+          <span className="absolute text-[8px] opacity-60" style={{ top: 4, right: 8 }}>Esc</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AdFooter({ onClientInfo, onDelete, canDelete, onWrite, canWrite, done }: {
+  onClientInfo: () => void; onDelete: () => void; canDelete: boolean; onWrite: () => void; canWrite: boolean; done: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between shrink-0" style={{ marginTop: 22, height: 56 }}>
+      <button onClick={onClientInfo} className={`${AD_OUTLINE} h-[56px] px-[26px] text-[15px] font-medium`}>Информация о клиенте</button>
+      {done && <span className="text-[14px] font-medium text-[#47d465]">Операция завершена</span>}
+      <div className="flex" style={{ gap: 12 }}>
+        <button onClick={onDelete} className={`${AD_NEUTRAL} h-[56px] text-[15px] font-medium ${canDelete ? "" : "opacity-60 pointer-events-none"}`} style={{ width: 180 }}>Удалить</button>
+        <button onClick={onWrite} className={`${adGreen(canWrite)} h-[56px] text-[15px]`} style={{ width: 206 }}>Записать</button>
+      </div>
+    </div>
+  );
+}
+
+function useAdDone() {
+  const [done, setDone] = useState(false);
+  useEffect(() => { if (!done) return; const t = setTimeout(() => setDone(false), 2500); return () => clearTimeout(t); }, [done]);
+  return [done, setDone] as const;
+}
+
+// ── Tab 1: Оформление товаров ──
+const AD_GOODS_GROUPS = [
+  { id: "tickets", title: "Билеты", items: ["Безлимит", "Входной билет 1 час"] },
+  { id: "cards",   title: "Карты",  items: ["Карта", "Браслет"] },
+];
+const AD_GOODS_COLS = "36px 1.5fr 0.8fr 1.2fr 0.6fr";
+
+function AdminGoodsTab({ onClientInfo }: { onClientInfo: () => void }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({ tickets: true, cards: true });
+  const [pending, setPending] = useState<string | null>(null);
+  const [rows, setRows] = useState<{ id: number; name: string; qty: number }[]>([]);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [email, setEmail] = useState("");
+  const [done, setDone] = useAdDone();
+  const nextId = useRef(1);
+
+  const addRow = (name: string) =>
+    setRows((prev) => prev.some((r) => r.name === name)
+      ? prev.map((r) => (r.name === name ? { ...r, qty: r.qty + 1 } : r))
+      : [...prev, { id: nextId.current++, name, qty: 1 }]);
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex flex-1 min-h-0" style={{ gap: 16 }}>
+        <section className="flex-1 min-w-0 flex flex-col rounded-[10px]" style={{ backgroundColor: AD_PANEL }}>
+          <p className="shrink-0 text-[13px] text-[#cfcfcd]" style={{ padding: "18px 14px 12px" }}>Записать на карту товары:</p>
+          <div className={`flex-1 min-h-0 ${AD_SCROLL}`}>
+            {AD_GOODS_GROUPS.map((g) => (
+              <div key={g.id}>
+                <button onClick={() => setOpen((o) => ({ ...o, [g.id]: !o[g.id] }))}
+                  className={`${AD_ROW} w-full h-[40px] flex items-center gap-[8px] px-[14px] text-[14px] ${open[g.id]
+                    ? "bg-[#d9f6e0] text-[#2b2b2b] hover:bg-[#c9efd3] active:bg-[#bde8c9]"
+                    : "bg-[#353534] text-white hover:bg-[#3e3e3d] active:bg-[#2a2a29]"}`}>
+                  <AdChevron up={!!open[g.id]} />{g.title}
+                </button>
+                {open[g.id] && g.items.map((name) => (
+                  <button key={name} onClick={() => setPending(name)}
+                    className={`${AD_ROW} w-full h-[40px] text-left px-[14px] text-[14px] text-white hover:bg-[#363635] active:bg-[#2a2a29]`}
+                    style={{ borderBottom: `1px solid ${AD_LINE}` }}>{name}</button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="flex-1 min-w-0 flex flex-col rounded-[10px]" style={{ backgroundColor: AD_PANEL }}>
+          <div className="shrink-0 grid items-center text-[13px] text-[#cfcfcd]" style={{ gridTemplateColumns: AD_GOODS_COLS, padding: "18px 14px 12px" }}>
+            <span /><span>Название</span><span>Карта</span><span>Категория клиента</span><span className="text-right">Кол-во</span>
+          </div>
+          <div className={`flex-1 min-h-0 ${AD_SCROLL}`}>
+            {rows.map((r) => {
+              const sel = selected === r.id;
+              return (
+                <button key={r.id} onClick={() => setSelected(sel ? null : r.id)}
+                  className={`${AD_ROW} w-full grid items-center h-[42px] text-left text-[13px] ${sel ? "bg-[#d9f6e0] text-[#2b2b2b]" : "text-white hover:bg-[#363635] active:bg-[#2a2a29]"}`}
+                  style={{ gridTemplateColumns: AD_GOODS_COLS, padding: "0 14px" }}>
+                  <AdQrIcon /><span>{r.name}</span><span>Печать</span><span /><span className="text-right">{r.qty}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="shrink-0" style={{ borderTop: `1px solid ${AD_LINE}` }}>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Ввести почту"
+              className="w-full h-[52px] px-[14px] bg-transparent text-[13px] text-white outline-none placeholder:text-[#8a8a88] focus:bg-white/5" />
+          </div>
+        </section>
+      </div>
+      <AdFooter onClientInfo={onClientInfo} done={done}
+        canDelete={selected !== null} onDelete={() => { setRows((p) => p.filter((r) => r.id !== selected)); setSelected(null); }}
+        canWrite={rows.length > 0} onWrite={() => { setRows([]); setSelected(null); setEmail(""); setDone(true); }} />
+      {pending && <AdminCardPopup onCancel={() => setPending(null)} onSuccess={() => { addRow(pending); setPending(null); }} />}
+    </div>
+  );
+}
+
+// ── Tab 2: Регистрация карт в системе ──
+const AD_REG_MODES = ["Ручной ввод бортового номера", "Бортовой номер + UID карты", "Счетчик", "Без бортовых номеров"];
+
+function AdminCardRegTab() {
+  const [mode, setMode] = useState(0);
+  const [count, setCount] = useState(0);
+  const [last, setLast] = useState<{ uid: string; num: string } | null>(null);
+  const [popup, setPopup] = useState(false);
+
+  const registerCard = () => {
+    setCount((c) => c + 1);
+    setLast({ uid: adHex(8), num: mode === 3 ? "—" : String(1000 + count + 1) });
+    setPopup(false);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex flex-col flex-1 min-h-0" style={{ gap: 18 }}>
+        <div className="flex items-center justify-between rounded-[10px] shrink-0" style={{ backgroundColor: AD_PANEL, height: 72, padding: "0 28px" }}>
+          {AD_REG_MODES.map((label, i) => (
+            <button key={label} onClick={() => setMode(i)} role="radio" aria-checked={mode === i}
+              className="flex items-center gap-[10px] text-[13px] text-white cursor-pointer select-none outline-none group focus-visible:ring-2 focus-visible:ring-[#47d465] rounded-[6px] p-[4px]">
+              <span className="flex items-center justify-center size-[22px] rounded-full transition-colors duration-150 group-hover:bg-[#47d465]/15 group-active:bg-[#47d465]/25"
+                style={{ boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+                {mode === i && <span className="size-[12px] rounded-full bg-[#47d465]" />}
+              </span>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex justify-end shrink-0">
+          <button onClick={() => setPopup(true)} className={`${AD_OUTLINE} h-[54px] px-[22px] text-[15px] font-medium`}>Добавить бортовой номер на существующую карту</button>
+        </div>
+        <div className="flex items-center justify-center rounded-[10px] shrink-0 text-[15px] font-semibold text-white"
+          style={{ backgroundColor: AD_PANEL, height: 60 }}>
+          {count === 0 ? "Выберите режим записи бортовых номеров" : `Режим: ${AD_REG_MODES[mode]}. Считайте следующую карту`}
+        </div>
+        <div className="flex shrink-0" style={{ gap: 16 }}>
+          <div className="flex-1 flex items-center gap-[14px] rounded-[10px] text-[16px] font-medium text-white" style={{ backgroundColor: AD_PANEL, height: 76, padding: "0 20px" }}>
+            <span className="flex items-center justify-center size-[34px] rounded-[8px]" style={{ backgroundColor: AD_FIELD }}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="6" width="18" height="12" rx="2" stroke="#47d465" strokeWidth="1.6" /><path d="M3 10H21" stroke="#47d465" strokeWidth="1.6" /></svg>
+            </span>
+            Карт обработано: <b>{count}</b>
+          </div>
+          <div className="flex-1 flex items-center gap-[14px] rounded-[10px] text-[16px] font-medium text-white" style={{ backgroundColor: AD_PANEL, height: 76, padding: "0 20px" }}>
+            <span className="flex items-center justify-center size-[34px] rounded-[8px]" style={{ backgroundColor: AD_FIELD }}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="4" width="18" height="16" rx="3" stroke="#47d465" strokeWidth="1.6" /><path d="M8 12l3 3 5-6" stroke="#47d465" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </span>
+            <span>Последняя карта:</span>
+            <span className="ml-[40px] text-[14px] leading-[1.9]">
+              <span className="block"><b>UID:</b> {last?.uid ?? ""}</span>
+              <span className="block"><b>Бортовой номер:</b> {last?.num ?? ""}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="flex justify-end shrink-0" style={{ marginTop: 22 }}>
+        <button onClick={() => setPopup(true)} className={`${adGreen(true)} h-[56px] text-[15px]`} style={{ width: 206 }}>Начать</button>
+      </div>
+      {popup && <AdminCardPopup onCancel={() => setPopup(false)} onSuccess={registerCard} />}
+    </div>
+  );
+}
+
+// ── Tab 3: Запись скидки ──
+const AD_DISCOUNTS = [{ name: "Многодетная", size: 20 }, { name: "Льготная", size: 10 }, { name: "Группа", size: 5 }];
+const AD_DISC_COLS = "1.3fr 0.9fr 0.9fr 1fr 1fr";
+
+function AdminDiscountTab({ onClientInfo }: { onClientInfo: () => void }) {
+  const [pickedIdx, setPickedIdx] = useState<number | null>(null);
+  const [pending, setPending] = useState<number | null>(null);
+  const [rows, setRows] = useState<{ id: number; name: string; from: string; to: string }[]>([]);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [done, setDone] = useAdDone();
+  const nextId = useRef(1);
+
+  const addDiscount = (idx: number) => {
+    const from = new Date(); const to = new Date(); to.setFullYear(to.getFullYear() + 1);
+    setRows((p) => p.some((r) => r.name === AD_DISCOUNTS[idx].name) ? p : [...p, { id: nextId.current++, name: AD_DISCOUNTS[idx].name, from: adFmtFull(from), to: adFmtFull(to) }]);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <p className="shrink-0 text-[14px] font-semibold text-white" style={{ marginBottom: 12 }}>Запись скидки</p>
+      <div className="flex flex-1 min-h-0" style={{ gap: 16 }}>
+        <section className="flex-1 min-w-0 flex flex-col rounded-[10px]" style={{ backgroundColor: AD_PANEL }}>
+          <div className="shrink-0 grid text-[13px] text-[#cfcfcd]" style={{ gridTemplateColumns: "1fr 120px", padding: "18px 14px 12px" }}>
+            <span>Название</span><span>Размер</span>
+          </div>
+          <div className={`flex-1 min-h-0 ${AD_SCROLL}`}>
+            {AD_DISCOUNTS.map((d, i) => (
+              <button key={d.name} onClick={() => { setPickedIdx(i); setPending(i); }}
+                className={`${AD_ROW} w-full grid items-center h-[40px] text-left text-[13px] ${pickedIdx === i ? "bg-[#d9f6e0] text-[#2b2b2b]" : "text-white hover:bg-[#363635] active:bg-[#2a2a29]"}`}
+                style={{ gridTemplateColumns: "1fr 120px", padding: "0 14px", borderBottom: pickedIdx === i ? "none" : `1px solid ${AD_LINE}` }}>
+                <span>{d.name}</span><span>{d.size}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+        <section className="flex-1 min-w-0 flex flex-col rounded-[10px]" style={{ backgroundColor: AD_PANEL }}>
+          <div className="shrink-0 grid text-[13px] text-[#cfcfcd]" style={{ gridTemplateColumns: AD_DISC_COLS, padding: "18px 14px 12px" }}>
+            <span>Название</span><span>С</span><span>До</span><span>Активна с</span><span>Активна до</span>
+          </div>
+          <div className={`flex-1 min-h-0 ${AD_SCROLL}`}>
+            {rows.map((r) => {
+              const sel = selected === r.id;
+              return (
+                <button key={r.id} onClick={() => setSelected(sel ? null : r.id)}
+                  className={`${AD_ROW} w-full grid items-center h-[40px] text-left text-[12px] ${sel ? "bg-[#d9f6e0] text-[#2b2b2b]" : "text-white hover:bg-[#363635] active:bg-[#2a2a29]"}`}
+                  style={{ gridTemplateColumns: AD_DISC_COLS, padding: "0 14px" }}>
+                  <span className="truncate">{r.name}</span><span className="truncate">{r.from}</span><span className="truncate">{r.to}</span><span />
+                  <span className="flex justify-end">
+                    {sel && <svg viewBox="0 0 20 20" width="16" height="16" fill="none"><path d="M13.5 3.5L16.5 6.5L7 16L3.5 16.5L4 13L13.5 3.5Z" stroke="#2b2b2b" strokeWidth="1.4" strokeLinejoin="round" /></svg>}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+      <AdFooter onClientInfo={onClientInfo} done={done}
+        canDelete={selected !== null} onDelete={() => { setRows((p) => p.filter((r) => r.id !== selected)); setSelected(null); }}
+        canWrite={rows.length > 0} onWrite={() => { setRows([]); setSelected(null); setPickedIdx(null); setDone(true); }} />
+      {pending !== null && <AdminCardPopup onCancel={() => setPending(null)} onSuccess={() => { addDiscount(pending); setPending(null); }} />}
+    </div>
+  );
+}
+
+// ── Tabs 4 & 6: Удаление скидки / Возврат товаров (load data from a card) ──
+function AdminLoadTab({ kind }: { kind: "goods" | "discount" }) {
+  const [popup, setPopup] = useState(false);
+  const [rows, setRows] = useState<{ name: string; qty: number; amount: number; checked: boolean }[]>([]);
+  const [done, setDone] = useAdDone();
+  const isGoods = kind === "goods";
+  const cols = "1.4fr 1fr 1fr";
+
+  const load = () => {
+    setRows(isGoods
+      ? [{ name: "Входной билет 1 час", qty: 3, amount: 0, checked: false }, { name: "Безлимит", qty: 1, amount: 0, checked: false }]
+      : [{ name: "Многодетная", qty: 20, amount: 0, checked: false }, { name: "Льготная", qty: 10, amount: 0, checked: false }]);
+    setPopup(false);
+  };
+  const canApply = rows.some((r) => (isGoods ? r.amount > 0 : r.checked));
+
+  return (
+    <div className="flex flex-col h-full">
+      <p className="shrink-0 text-[14px] font-semibold text-white" style={{ marginBottom: 16 }}>{isGoods ? "Удаление товаров карты:" : "Удаление скидок карты:"}</p>
+      <div className="shrink-0">
+        <button onClick={() => setPopup(true)} className={`${AD_OUTLINE} h-[48px] text-[15px] font-medium`} style={{ width: 290 }}>Загрузить данные с карты</button>
+      </div>
+      <section className="flex-1 min-h-0 flex flex-col rounded-[10px]" style={{ backgroundColor: AD_PANEL, marginTop: 18 }}>
+        <div className="shrink-0 grid text-[13px] text-[#cfcfcd]" style={{ gridTemplateColumns: cols, padding: "18px 22px 12px", borderBottom: "1px solid #bdbdbb" }}>
+          <span>Название</span><span>{isGoods ? "Количество" : "Размер"}</span><span>{isGoods ? "Сколько удалить" : "Удалить"}</span>
+        </div>
+        <div className={`flex-1 min-h-0 ${AD_SCROLL}`}>
+          {rows.map((r, i) => (
+            <div key={r.name} className="grid items-center h-[52px] text-[14px] text-white" style={{ gridTemplateColumns: cols, padding: "0 22px", borderBottom: `1px solid ${AD_LINE}` }}>
+              <span>{r.name}</span><span>{r.qty}</span>
+              {isGoods ? (
+                <input type="number" min={0} max={r.qty} value={r.amount}
+                  onChange={(e) => { const v = Math.max(0, Math.min(r.qty, parseInt(e.target.value || "0", 10) || 0)); setRows((p) => p.map((x, j) => (j === i ? { ...x, amount: v } : x))); }}
+                  className="w-[90px] h-[34px] rounded-[8px] px-[10px] text-[14px] text-white outline-none focus:ring-2 focus:ring-[#47d465]/50" style={{ backgroundColor: AD_FIELD }} />
+              ) : (
+                <button role="checkbox" aria-checked={r.checked} onClick={() => setRows((p) => p.map((x, j) => (j === i ? { ...x, checked: !x.checked } : x)))}
+                  className="flex items-center justify-center size-[22px] rounded-[5px] cursor-pointer outline-none transition-colors duration-150 hover:bg-[#47d465]/20 active:bg-[#47d465]/35 focus-visible:ring-2 focus-visible:ring-[#47d465]"
+                  style={{ boxShadow: "inset 0 0 0 1.5px #47d465", backgroundColor: r.checked ? "#47d465" : undefined }}>
+                  {r.checked && <svg viewBox="0 0 20 20" className="size-full" fill="none"><path d="M4 9.5L8.5 14L16 6" stroke="white" strokeWidth="1.8" strokeLinecap="round" /></svg>}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+      {rows.length > 0 && (
+        <div className="flex items-center justify-end shrink-0" style={{ marginTop: 22, gap: 18 }}>
+          {done && <span className="text-[14px] font-medium text-[#47d465]">Операция завершена</span>}
+          <button onClick={() => { setRows([]); setDone(true); }} className={`${adGreen(canApply)} h-[56px] text-[15px]`} style={{ width: 206 }}>Применить</button>
+        </div>
+      )}
+      {rows.length === 0 && done && <p className="text-[14px] font-medium text-[#47d465] shrink-0" style={{ marginTop: 18 }}>Операция завершена</p>}
+      {popup && <AdminCardPopup onCancel={() => setPopup(false)} onSuccess={load} />}
+    </div>
+  );
+}
+
+// ── Tab 5: Освободить ячейку залога ──
+function AdminPledgeTab() {
+  const [cell, setCell] = useState("");
+  const [done, setDone] = useAdDone();
+  return (
+    <div className="flex flex-col h-full">
+      <p className="shrink-0 text-[14px] font-semibold text-white" style={{ marginBottom: 16 }}>Освободить ячейку залога</p>
+      <div className="flex items-center shrink-0" style={{ gap: 14 }}>
+        <input value={cell} onChange={(e) => setCell(e.target.value.replace(/\D/g, ""))} placeholder="Номер ячейки"
+          className="h-[48px] rounded-[10px] px-[16px] text-[14px] text-white outline-none placeholder:text-[#8a8a88] focus:ring-2 focus:ring-[#47d465]/40" style={{ width: 340, backgroundColor: AD_PANEL }} />
+        <button onClick={() => { setCell(""); setDone(true); }} className={`${AD_OUTLINE} h-[48px] px-[26px] text-[15px] font-medium ${cell ? "" : "opacity-50 pointer-events-none"}`}>Освободить</button>
+        {done && <span className="text-[14px] font-medium text-[#47d465]">Ячейка освобождена</span>}
+      </div>
+    </div>
+  );
+}
+
+// ── Tab 7: Карты сотрудников ──
+const AD_ROLES = ["Не зарегистрирован", "Кассир", "Старший кассир", "Администратор"];
+
+function AdminStaffTab() {
+  const [email, setEmail] = useState("");
+  const [found, setFound] = useState(false);
+  const [error, setError] = useState(false);
+  const [role, setRole] = useState(AD_ROLES[0]);
+  const [parkReg, setParkReg] = useState(false);
+  const [card, setCard] = useState<{ uid: string; num: string } | null>(null);
+  const [popup, setPopup] = useState(false);
+  const [done, setDone] = useAdDone();
+
+  const search = () => { if (/\S+@\S+/.test(email)) { setFound(true); setError(false); } else { setError(true); setFound(false); } };
+  const reset = () => { setFound(false); setEmail(""); setRole(AD_ROLES[0]); setParkReg(false); setCard(null); setDone(true); };
+  const field = (label: string, value: string) => (
+    <div className="flex flex-col" style={{ gap: 6 }}>
+      <span className="text-[12px] text-[#cfcfcd]">{label}</span>
+      <div className="flex items-center h-[50px] rounded-[10px] px-[16px] text-[15px] text-white" style={{ backgroundColor: AD_FIELD }}>{value}</div>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col h-full">
+      <p className="shrink-0 text-[14px] font-semibold text-white" style={{ marginBottom: 14 }}>Учетная запись сотрудника</p>
+      <div className="flex items-center shrink-0" style={{ gap: 14 }}>
+        <input value={email} onChange={(e) => { setEmail(e.target.value); setFound(false); }} onKeyDown={(e) => { if (e.key === "Enter") search(); }}
+          placeholder="Ввести e-mail"
+          className="flex-1 h-[48px] rounded-[10px] px-[18px] text-[14px] text-white outline-none placeholder:text-[#8a8a88] focus:ring-2 focus:ring-[#47d465]/40" style={{ backgroundColor: AD_PANEL }} />
+        <button onClick={search} className={`${AD_OUTLINE} h-[48px] px-[26px] text-[15px] font-medium`}>Создать или найти учетную запись</button>
+      </div>
+      {!found ? (
+        <div className="flex items-center justify-center rounded-[10px] shrink-0 text-[14px] font-semibold text-[#f95b1c]" style={{ backgroundColor: AD_PANEL, height: 60, marginTop: 18 }}>
+          {error ? "Введите корректный e-mail" : "Создайте или выберите существующую учетную запись"}
+        </div>
+      ) : (
+        <>
+          <section className={`flex-1 min-h-0 rounded-[10px] ${AD_SCROLL}`} style={{ backgroundColor: AD_PANEL, marginTop: 18, padding: "26px 30px" }}>
+            <p className="text-[17px] font-bold text-white" style={{ marginBottom: 18 }}>Данные пользователя</p>
+            <div className="grid" style={{ gap: 14, gridTemplateColumns: "1fr 1fr" }}>
+              <div style={{ gridColumn: "1 / 3" }}>{field("Фамилия Имя Отчество", "Данилов Андрей Викторович")}</div>
+              <div style={{ gridColumn: "1 / 3" }}>{field("User ID", "700771")}</div>
+              {field("Регистрация в системе с:", "03.10.2018")}
+              {field("Регистрация в парке:", parkReg ? "Да" : "Нет")}
+              <div className="flex flex-col" style={{ gap: 6 }}>
+                <span className="text-[12px] text-[#cfcfcd]">Роль</span>
+                <div className="relative">
+                  <select value={role} onChange={(e) => setRole(e.target.value)}
+                    className="w-full h-[50px] rounded-[10px] px-[16px] text-[15px] text-white outline-none appearance-none cursor-pointer transition-colors duration-150 hover:bg-[#444443] focus:ring-2 focus:ring-[#47d465]/50" style={{ backgroundColor: AD_FIELD }}>
+                    {AD_ROLES.map((r) => <option key={r} value={r} style={{ backgroundColor: "#2c2c2b" }}>{r}</option>)}
+                  </select>
+                  <span className="absolute pointer-events-none text-white" style={{ right: 14, top: 16 }}><AdChevron up={false} /></span>
+                </div>
+              </div>
+              {field("E-mail", email)}
+              {field("Бортовой номер", card?.num ?? "Нет")}
+              {field("UID карты", card?.uid ?? "Нет")}
+            </div>
+            {!card && <p className="text-[14px] font-semibold text-[#f95b1c]" style={{ marginTop: 18 }}>Карта не выдана или неактивна</p>}
+          </section>
+          <div className="flex items-center shrink-0" style={{ marginTop: 22, gap: 16 }}>
+            <button onClick={() => setParkReg(true)} className={`${AD_OUTLINE} h-[56px] flex-1 text-[15px] font-medium ${parkReg ? "opacity-50 pointer-events-none" : ""}`}>Зарегистрировать в парке</button>
+            <button onClick={() => setPopup(true)} className={`${AD_OUTLINE} h-[56px] flex-1 text-[15px] font-medium`}>Выдать карту сотрудника</button>
+            <button onClick={reset} className={`${adGreen(true)} h-[56px] flex-1 text-[15px]`}>Сохранить</button>
+          </div>
+        </>
+      )}
+      {done && !found && <p className="text-[14px] font-medium text-[#47d465] shrink-0" style={{ marginTop: 14 }}>Данные сохранены</p>}
+      {popup && <AdminCardPopup onCancel={() => setPopup(false)} onSuccess={() => { setCard({ uid: adHex(8), num: String(2000 + Math.floor(Math.random() * 900)) }); setPopup(false); }} />}
+    </div>
+  );
+}
+
+// ── Tab 8: Отчеты (+ calendar / time picker) ──
+interface AdDT { date: Date; hour: number; minute: number; }
+
+function AdminDateTimeField({ value, onChange }: { value: AdDT; onChange: (v: AdDT) => void }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<AdDT>(value);
+  const [view, setView] = useState({ y: value.date.getFullYear(), m: value.date.getMonth() });
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  const end = new Date(value.date); end.setDate(end.getDate() + 1);
+  const openPicker = () => { setDraft(value); setView({ y: value.date.getFullYear(), m: value.date.getMonth() }); setOpen(true); };
+  const shiftMonth = (d: number) => setView((v) => { const n = new Date(v.y, v.m + d, 1); return { y: n.getFullYear(), m: n.getMonth() }; });
+  const off = (new Date(view.y, view.m, 1).getDay() + 6) % 7;
+  const cells = Array.from({ length: 42 }, (_, i) => new Date(view.y, view.m, 1 - off + i));
+  const today = new Date();
+  const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+  const clockPos = (n: number, r: number) => { const a = ((n % 12) * 30 * Math.PI) / 180; return { x: 108 + r * Math.sin(a), y: 108 - r * Math.cos(a) }; };
+  const sel = clockPos(draft.hour, 82);
+  const navBtn = "flex items-center justify-center size-[28px] rounded-[6px] cursor-pointer outline-none text-white transition-all duration-150 hover:bg-white/10 active:bg-white/15 active:scale-90";
+  const selectCls = "h-[28px] rounded-[4px] bg-transparent px-[6px] text-[13px] text-white outline-none cursor-pointer transition-colors duration-150 hover:bg-white/10 focus:ring-2 focus:ring-[#47d465]/50";
+
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => (open ? setOpen(false) : openPicker())}
+        className="w-full flex items-center justify-between rounded-[10px] cursor-pointer select-none outline-none text-white text-[14px] leading-[1.25] transition-[background-color,transform] duration-150 hover:bg-white/5 active:bg-white/10 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-[#47d465]"
+        style={{ boxShadow: "inset 0 0 0 1px #ffffff", padding: "9px 14px", textAlign: "center" }}>
+        <span className="flex-1">
+          {adFmtShort(value.date)}-{adFmtShort(end)}<br />
+          {adPad(value.hour)}:{adPad(value.minute)}-{adPad((value.hour + 1) % 24)}:{adPad(value.minute)}
+        </span>
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" aria-hidden><rect x="3" y="5" width="18" height="16" rx="2.5" stroke="#47d465" strokeWidth="1.6" /><path d="M3 10H21M8 3v4M16 3v4" stroke="#47d465" strokeWidth="1.6" strokeLinecap="round" /><path d="M7 14h2M11 14h2M15 14h2M7 17.5h2M11 17.5h2" stroke="#47d465" strokeWidth="1.6" strokeLinecap="round" /></svg>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 flex rounded-[10px]"
+          style={{ top: "calc(100% + 8px)", zIndex: 50, width: 560, padding: 16, gap: 18, backgroundColor: "#2a2a29", boxShadow: "0 10px 40px rgba(0,0,0,0.55)", textAlign: "left" }}>
+          <div style={{ width: 290 }}>
+            <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
+              <button onClick={() => shiftMonth(-1)} className={navBtn} aria-label="Предыдущий месяц"><svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg></button>
+              <span className="text-[13px] text-white">{MONTHS_RU[view.m]} {view.y}</span>
+              <button onClick={() => shiftMonth(1)} className={navBtn} aria-label="Следующий месяц"><svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg></button>
+            </div>
+            <div className="grid text-center text-[12px] rounded-[4px]" style={{ gridTemplateColumns: "repeat(7, 1fr)", backgroundColor: AD_FIELD, color: AD_MUTED, height: 30, alignItems: "center" }}>
+              {DAYS_SHORT.map((d) => <span key={d}>{d}</span>)}
+            </div>
+            <div className="grid" style={{ gridTemplateColumns: "repeat(7, 1fr)", marginTop: 6 }}>
+              {cells.map((d) => {
+                const isSel = same(d, draft.date);
+                const inMonth = d.getMonth() === view.m;
+                return (
+                  <button key={d.toISOString()} onClick={() => setDraft((p) => ({ ...p, date: d }))}
+                    className={`relative h-[38px] text-[13px] cursor-pointer outline-none transition-colors duration-150 rounded-[6px] ${isSel ? "bg-[#47d465] text-white font-semibold" : `hover:bg-white/10 active:bg-white/20 ${inMonth ? "text-white" : "text-[#6f6f6d]"}`}`}>
+                    {d.getDate()}
+                    {same(d, today) && !isSel && <span className="absolute rounded-full bg-[#47d465]" style={{ width: 4, height: 4, left: "50%", bottom: 4, transform: "translateX(-50%)" }} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex flex-col items-center" style={{ width: 216 }}>
+            <svg viewBox="0 0 216 216" width="216" height="216" aria-label="Выбор часа">
+              <circle cx="108" cy="108" r="106" fill="#333332" />
+              <line x1="108" y1="108" x2={sel.x} y2={sel.y} stroke="#47d465" strokeWidth="1.5" />
+              <circle cx="108" cy="108" r="3.5" fill="#47d465" />
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => {
+                const p = clockPos(n, 82);
+                const on = draft.hour % 12 === n % 12;
+                return (
+                  <g key={n} className="cursor-pointer" onClick={() => setDraft((d) => ({ ...d, hour: (n % 12) + (d.hour >= 12 ? 12 : 0) }))}>
+                    <circle cx={p.x} cy={p.y} r="17" fill={on ? "#47d465" : "transparent"} className={on ? "" : "hover:fill-white/10"} />
+                    <text x={p.x} y={p.y + 4.5} textAnchor="middle" fontSize="13" fill={on ? "#ffffff" : "#bdbdbb"} style={{ pointerEvents: "none" }}>{n}</text>
+                  </g>
+                );
+              })}
+            </svg>
+            <div className="flex items-center self-start" style={{ gap: 6, marginTop: 6 }}>
+              <select value={draft.hour} onChange={(e) => setDraft((d) => ({ ...d, hour: Number(e.target.value) }))} className={selectCls} style={{ boxShadow: "inset 0 0 0 1px #ffffff99" }}>
+                {Array.from({ length: 24 }, (_, h) => <option key={h} value={h} style={{ backgroundColor: "#2c2c2b" }}>{adPad(h)}</option>)}
+              </select>
+              <span className="text-white">:</span>
+              <select value={draft.minute} onChange={(e) => setDraft((d) => ({ ...d, minute: Number(e.target.value) }))} className={selectCls} style={{ boxShadow: "inset 0 0 0 1px #ffffff99" }}>
+                {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => <option key={m} value={m} style={{ backgroundColor: "#2c2c2b" }}>{adPad(m)}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center self-stretch justify-between" style={{ marginTop: 12 }}>
+              <button onClick={() => setDraft((d) => ({ ...d, date: new Date(), hour: new Date().getHours() }))}
+                className="text-[13px] text-[#cfcfcd] underline underline-offset-2 cursor-pointer outline-none transition-colors duration-150 hover:text-white active:text-[#47d465]">Сегодня</button>
+              <div className="flex" style={{ gap: 8 }}>
+                <button onClick={() => setOpen(false)} className="h-[30px] px-[14px] rounded-[4px] bg-white text-[13px] text-[#2b2b2b] cursor-pointer outline-none transition-all duration-150 hover:bg-[#ececec] active:bg-[#dcdcdc] active:scale-95">Отмена</button>
+                <button onClick={() => { onChange(draft); setOpen(false); }} className="h-[30px] px-[14px] rounded-[4px] bg-[#47d465] text-[13px] font-semibold text-white cursor-pointer outline-none transition-all duration-150 hover:bg-[#3dc05a] active:bg-[#30a84a] active:scale-95">OK</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminReportsTab() {
+  const initial = (): AdDT => ({ date: new Date(), hour: 13, minute: 0 });
+  const [saleRange, setSaleRange] = useState<AdDT>(initial);
+  const [reportRange, setReportRange] = useState<AdDT>(initial);
+  const [last, setLast] = useState<string | null>(null);
+  const rBtn = (label: string, dim = false) => (
+    <button key={label} onClick={() => !dim && setLast(label)}
+      className={`${AD_OUTLINE} w-full h-[54px] px-[12px] text-[15px] font-medium ${dim ? "text-[#9b9b99] pointer-events-none" : ""}`}>{label}</button>
+  );
+  const col = (title: string, body: React.ReactNode) => (
+    <section className="flex-1 min-w-0 rounded-[10px]" style={{ backgroundColor: AD_PANEL, padding: "18px 16px 20px" }}>
+      <p className="text-[15px] text-white" style={{ paddingBottom: 12, marginBottom: 14, borderBottom: "1px solid #6b6b69" }}>{title}</p>
+      <div className="flex flex-col" style={{ gap: 12 }}>{body}</div>
+    </section>
+  );
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-stretch shrink-0" style={{ gap: 16 }}>
+        {col("Старший кассир", <>{["Z отчет", "X отчет"].map((l) => rBtn(l))}{rBtn("Открыть смену", true)}{["Сверка итогов", "Журнал эквайринга"].map((l) => rBtn(l))}</>)}
+        {col("Наличные", <>{["Внесение наличных", "Инкассация"].map((l) => rBtn(l))}</>)}
+        {col("Чек реализации услуг", <><AdminDateTimeField value={saleRange} onChange={setSaleRange} />{rBtn("Печать")}</>)}
+        {col("Отчеты", <><AdminDateTimeField value={reportRange} onChange={setReportRange} />{["Итоговый отчет по продажам", "Сводный отчет по оплатам", "Детальный по прокату (выдача)", "Итоговый по прокату (выдача)"].map((l) => rBtn(l))}</>)}
+      </div>
+      {last && <p className="text-[14px] font-medium text-[#47d465]" style={{ marginTop: 18 }}>Сформировано: {last}</p>}
+    </div>
+  );
+}
+
+function AdminScreen({ onClose, onClientInfo }: { onClose: () => void; onClientInfo: () => void }) {
+  const [tab, setTab] = useState("goods");
+  const tabBody: Record<string, React.ReactNode> = {
+    goods: <AdminGoodsTab onClientInfo={onClientInfo} />,
+    cards: <AdminCardRegTab />,
+    discount: <AdminDiscountTab onClientInfo={onClientInfo} />,
+    delDisc: <AdminLoadTab kind="discount" />,
+    pledge: <AdminPledgeTab />,
+    returns: <AdminLoadTab kind="goods" />,
+    staff: <AdminStaffTab />,
+    reports: <AdminReportsTab />,
+  };
+  return (
+    <div className="absolute inset-0 flex flex-col" style={{ zIndex: 38, backgroundColor: "#1f1e1d", padding: "18px 59px 24px 99px" }}>
+      <div className="flex items-center shrink-0" style={{ gap: 8, height: 44 }}>
+        <button onClick={onClose} aria-label="Назад"
+          className="flex items-center justify-center size-[32px] rounded-[8px] cursor-pointer outline-none text-white transition-all duration-150 hover:bg-white/10 active:bg-white/15 active:scale-90 focus-visible:ring-2 focus-visible:ring-[#47d465]">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+        <p className="font-bold text-[24px] text-white tracking-[0.3px]">Режим администратора</p>
+      </div>
+      <div className="flex shrink-0" style={{ gap: 8, marginTop: 14 }}>
+        {AD_TABS.map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)} aria-pressed={tab === t.id}
+            className={`${AD_BTN} h-[38px] px-[12px] rounded-[10px] text-[14px] whitespace-nowrap ${tab === t.id
+              ? "bg-[#47d465] text-white font-semibold hover:bg-[#3dc05a] active:bg-[#30a84a]"
+              : "bg-[#2e2e2d] text-[#e6e6e4] hover:bg-[#3a3a39] active:bg-[#252524]"}`}>{t.label}</button>
+        ))}
+      </div>
+      <div className="flex-1 min-h-0" style={{ marginTop: 20 }}>
+        {AD_TABS.map((t) => (
+          <div key={t.id} className="h-full" style={{ display: tab === t.id ? "block" : "none" }}>{tabBody[t.id]}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 type PendingAdd = { kind: "add"; product: Product; qty: number } | { kind: "qtyModal"; product: Product };
 
 function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onLogout: () => void; requireRegistration: boolean }) {
@@ -3250,6 +3880,8 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
   const [showClientInfo, setShowClientInfo]   = useState(false);
   const [qtyProduct, setQtyProduct]           = useState<Product | null>(null);
   const [menuOpen, setMenuOpen]               = useState(false);
+  const [showAdmin, setShowAdmin]             = useState(false);
+  useEffect(() => { if (!adminMode) setShowAdmin(false); }, [adminMode]);
   const effectiveDark = dark || adminMode;
   const c = th(effectiveDark);
 
@@ -3310,6 +3942,7 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
         onMenu={() => setMenuOpen((v) => !v)}
         onHome={requireRegistration ? () => setHomeMode((v) => !v) : undefined}
         homeActive={homeMode}
+        onShield={() => { setMenuOpen(false); setShowAdmin(true); }}
       />
       <TopBar dark={effectiveDark} adminMode={adminMode} onAdminToggle={() => setAdminMode((m) => !m)}
         activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
@@ -3321,6 +3954,10 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
 
       <ProductGrid dark={effectiveDark} onAdd={handleProductClick} onLongPressAdd={handleLongPressAdd} />
       <BottomBar dark={effectiveDark} onClientInfo={() => setShowCardScan(true)} />
+
+      {showAdmin && adminMode && (
+        <AdminScreen onClose={() => setShowAdmin(false)} onClientInfo={() => setShowCardScan(true)} />
+      )}
 
       {qtyProduct && (
         <QuantityModal
