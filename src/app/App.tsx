@@ -5,8 +5,6 @@ import svgPathsPin from "@/imports/ВходВСистемуПоПинКоду/sv
 import svgPathsSettings from "@/imports/ОкноНастроек/svg-07zwmi8g09";
 import svgPayment from "@/imports/Расчет1/svg-s1m9q89cq0";
 import svgClose from "@/imports/Group/svg-5zdpobxose";
-import svgVvod from "@/imports/ВводНомера/svg-jthakxpxua";
-import svgNomer from "@/imports/НомерПринят/svg-4g1idpx879";
 import svgReg from "@/imports/РегистрацияГостя-1/svg-2ne1v20uh3";
 import svgNewData from "@/imports/НовыеДанные/svg-49bwdoakjj";
 import svgCard from "@/imports/СчитатьКарту/svg-lwbgswx1qv";
@@ -671,21 +669,21 @@ const MENU_SECTIONS: MenuSection[] = [
       [
         { label: "С регистрацией", badge: "Insert" },
         { label: "По карте", badge: "Ctrl+Insert" },
-        { label: "Доп. по карте" },
-        { label: "Доп. с поиском" },
-        { label: "Оказание услуги", badge: "Home" },
+        { label: "Доп. по карте", action: "cardExtra" },
+        { label: "Доп. с поиском", action: "cardExtraSearch" },
+        { label: "Оказание услуги", badge: "Home", action: "service" },
       ],
       [
-        { label: "Блокировать" },
-        { label: "Разблокировать" },
+        { label: "Блокировать", action: "cardBlock" },
+        { label: "Разблокировать", action: "cardUnblock" },
         { label: "Расширить билет", badge: "PageUp" },
         { label: "Слияние счетов клиентов" },
       ],
   ]},
   { key: "preorder", label: "Предварительные заказы", icon: "card", leaves: [
-      { label: "Получить предзаказ", badge: "F12" },
-      { label: "Внести предоплату" },
-      { label: "Вернуть предоплату" },
+      { label: "Получить предзаказ", badge: "F12", action: "preorders" },
+      { label: "Внести предоплату", action: "preorders" },
+      { label: "Вернуть предоплату", action: "preorders" },
   ]},
   { key: "monitors", label: "Мониторы", icon: "monitor", isMonitor: true },
 ];
@@ -2530,134 +2528,119 @@ function GuestPickerModal({ productName, people, onPick, onCancel }: {
   );
 }
 
-// ─── Phone Modal ──────────────────────────────────────────────────────────────
+// ─── Client registration popup (User+ button) ────────────────────────────────
+// One title and one placeholder; the variant is detected from what's entered:
+// 11 digits → phone, 8 hex chars → card UID, or a card read by the reader
+// (button, double click or F4) fills the UID itself.
 
-function PhoneModal({ onClose, onSuccess }: { onClose: () => void; onSuccess?: (phone: string) => void }) {
-  const [phone, setPhone] = useState("");
-  const [accepted, setAccepted] = useState(false);
+type IdentifyKind = "phone" | "uid" | "card";
+
+function detectIdentify(raw: string): "phone" | "uid" | null {
+  const v = raw.replace(/[\s()+-]/g, "");
+  if (/^[78]\d{10}$/.test(v)) return "phone";
+  if (/^[0-9A-F]{8}$/i.test(v)) return "uid";
+  return null;
+}
+
+function ClientIdentifyModal({ dark, onClose, onPhone, onCard }: {
+  dark: boolean; onClose: () => void; onPhone: (phone: string) => void; onCard: (uid: string, kind: "uid" | "card") => void;
+}) {
+  const c = th(dark);
+  const [value, setValue] = useState("");
+  const [cardRead, setCardRead] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
-  // Digits only, max 11
-  const digits = phone.replace(/\D/g, "").slice(0, 11);
-  const isValid = digits.length === 11;
+  const detected = detectIdentify(value);
+  const kind: IdentifyKind | null = cardRead ? "card" : detected;
+  const typing = value.trim().length > 0 && !kind;
 
-  // Focus input on open
-  useEffect(() => { if (!accepted) inputRef.current?.focus(); }, [accepted]);
-
-  const handleOk = () => {
-    if (!accepted && isValid) { setAccepted(true); return; }
-    if (accepted) { onSuccess ? onSuccess(digits) : onClose(); }
+  const readCard = () => { setValue(genCardNumber()); setCardRead(true); };
+  const submit = () => {
+    if (!kind) return;
+    if (kind === "phone") onPhone(value.replace(/\D/g, ""));
+    else onCard(value.trim().toUpperCase(), kind);
   };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "F4") { e.preventDefault(); readCard(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
-  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (accepted) return;
-    setPhone(e.target.value);
-  };
-
-  const handleClear = () => { setPhone(""); setAccepted(false); };
+  const status = kind === "phone" ? "Номер телефона"
+    : kind === "uid" ? "UID карты"
+    : kind === "card" ? "Карта считана"
+    : typing ? "Телефон — 11 цифр, UID карты — 8 символов (0–9, A–F)"
+    : "Введите номер телефона или UID карты, либо приложите карту к считывателю";
+  const statusColor = kind ? "#2fae4c" : typing ? "#F95B1C" : c.textSec;
 
   return (
     <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 60 }}>
-      {/* Overlay */}
       <div className="absolute inset-0" style={{ backgroundColor: "#403e3e", opacity: 0.41 }} onClick={onClose} />
-
-      {/* Dialog — w-596 h-298, centered per Figma: left calc(50%-7px) top calc(50%-42px) */}
-      <div className="absolute bg-white rounded-[10px] overflow-hidden"
-        style={{ width: 596, height: 298, left: "calc(50% - 7px)", top: "calc(50% - 42px)", transform: "translate(-50%,-50%)" }}>
-
-        {/* Close × — top-left rotated cross (Group1 from import) */}
-        <button onClick={onClose}
-          className="absolute cursor-pointer transition-opacity hover:opacity-60 active:opacity-40"
-          style={{ left: 0, top: 0, width: 596 * 0.0821, height: 298 * 0.1879, background: "none", border: "none", padding: 0 }}>
-          <div className="absolute flex items-center justify-center"
-            style={{ inset: `${298 * 0.0671}px ${596 * 0.0279}px ${298 * 0.8139}px ${596 * 0.9178}px`, containerType: "size" }}>
-            <div style={{ transform: "rotate(-47.64deg) skewX(-5.27deg)" }}>
-              <svg fill="none" viewBox="0 0 24 24" style={{ width: 24, height: 24 }}>
-                <path d={svgVvod.p31ed2680} fill="#303030" />
-              </svg>
-            </div>
-          </div>
+      <div role="dialog" aria-label="Регистрация клиента" className="relative rounded-[10px] transition-colors duration-300"
+        style={{ width: 596, padding: "36px 30px 30px", backgroundColor: c.sidebarBg }}>
+        <button onClick={onClose} aria-label="Закрыть"
+          className="absolute flex items-center justify-center size-[36px] rounded-[8px] cursor-pointer select-none outline-none transition-all duration-150 hover:bg-black/10 active:bg-black/15 active:scale-90 focus-visible:shadow-[inset_0_0_0_2px_#47d465]"
+          style={{ right: 18, top: 18 }}>
+          <svg viewBox="0 0 24 24" className="size-[20px]" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke={c.textPrimary} strokeWidth="2.2" strokeLinecap="round" /></svg>
         </button>
+        <p className="font-bold text-[24px] text-center" style={{ color: c.textPrimary }}>Регистрация клиента</p>
 
-        {/* Title */}
-        <p className="absolute font-bold text-[24px] text-[#2b2b2b] text-center whitespace-nowrap"
-          style={{ top: 60, left: "50%", transform: "translateX(-50%)", fontFamily: "Raleway, sans-serif" }}>
-          Введите номер телефона
-        </p>
-
-        {/* Input field — h-60 w-536 left-30 top-112 */}
-        <div className="absolute flex items-center gap-[10px] rounded-[10px] px-[16px] transition-shadow"
-          style={{ left: 30, top: 112, width: 536, height: 60, backgroundColor: "#f8f8f8",
-            boxShadow: !accepted && phone.length > 0 && !isValid ? "0 0 0 2px rgba(249,91,28,0.35)" : undefined }}>
-          {/* Icon: red × (invalid/empty) or green ✓ (valid/accepted) */}
-          {accepted || isValid ? (
+        <div className="flex items-center gap-[10px] rounded-[10px] transition-shadow duration-150 focus-within:shadow-[inset_0_0_0_1.5px_#47d465]"
+          style={{ marginTop: 26, height: 60, padding: "0 8px 0 16px", backgroundColor: c.inputBg,
+            boxShadow: typing ? "inset 0 0 0 1.5px rgba(249,91,28,0.45)" : undefined }}
+          onDoubleClick={readCard}>
+          {kind ? (
             <svg fill="none" viewBox="0 0 24 24" style={{ width: 24, height: 24, flexShrink: 0 }}>
-              <g clipPath="url(#cp-ok)">
-                <path d={svgNomer.p303b2600} fill="#47D465" />
-              </g>
-              <defs><clipPath id="cp-ok"><rect fill="white" width="24" height="24" /></clipPath></defs>
+              <circle cx="12" cy="12" r="12" fill="#47D465" fillOpacity="0.14" />
+              <path d="M7 12.5L10.5 16L17 9" stroke="#47D465" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : typing ? (
+            <svg fill="none" viewBox="0 0 24 24" style={{ width: 24, height: 24, flexShrink: 0 }}>
+              <circle cx="12" cy="12" r="12" fill="#E95525" fillOpacity="0.1" />
+              <path d="M12 7V13" stroke="#F95B1C" strokeWidth="2" strokeLinecap="round" /><circle cx="12" cy="16.5" r="1.2" fill="#F95B1C" />
             </svg>
           ) : (
             <svg fill="none" viewBox="0 0 24 24" style={{ width: 24, height: 24, flexShrink: 0 }}>
-              <g id="Frame 1321315634">
-                <circle cx="12" cy="12" fill="#E95525" fillOpacity="0.1" r="12" />
-                <path d={svgVvod.pa881280} fill="#F95B1C" />
-              </g>
+              <circle cx="11" cy="11" r="6.5" stroke={c.textSec} strokeWidth="1.8" /><path d="M16 16L20 20" stroke={c.textSec} strokeWidth="1.8" strokeLinecap="round" />
             </svg>
           )}
-          {accepted ? (
-            /* Accepted state: show number as text, non-editable */
-            <span className="font-semibold text-[14px] text-[#2b2b2b] select-none"
-              style={{ fontFamily: "Raleway, sans-serif", fontFeatureSettings: '"lnum","pnum"' }}>
-              {digits}
-            </span>
-          ) : (
-            <input
-              ref={inputRef}
-              type="tel"
-              value={phone}
-              onChange={handleInput}
-              placeholder="+7 (___) ___-__-__"
-              className="flex-1 bg-transparent text-[14px] font-semibold text-[#2b2b2b] outline-none placeholder:opacity-40"
-              style={{ fontFamily: "Raleway, sans-serif", fontFeatureSettings: '"lnum","pnum"' }}
-              onKeyDown={(e) => { if (e.key === "Enter" && isValid) handleOk(); if (e.key === "Escape") onClose(); }}
-            />
-          )}
-          {/* Clear button when has text and not accepted */}
-          {!accepted && phone.length > 0 && (
-            <button onClick={handleClear}
-              className="shrink-0 cursor-pointer transition-opacity hover:opacity-60 active:opacity-40"
-              style={{ background: "none", border: "none", padding: 0 }}>
-              <svg fill="none" viewBox="0 0 14 14" style={{ width: 14, height: 14 }}>
-                <path d="M1 1L13 13M13 1L1 13" stroke="#b0b0b0" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
+          <input ref={inputRef} value={value} aria-label="Телефон или UID карты"
+            onChange={(e) => { setValue(e.target.value); setCardRead(false); }}
+            onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+            placeholder="Телефон, UID карты или считайте карту"
+            className="flex-1 min-w-0 bg-transparent text-[16px] font-semibold outline-none placeholder:font-normal placeholder:opacity-45"
+            style={{ color: c.textPrimary, fontFeatureSettings: '"lnum","pnum"' }} />
+          {value && (
+            <button onClick={() => { setValue(""); setCardRead(false); inputRef.current?.focus(); }} aria-label="Очистить"
+              className="shrink-0 flex items-center justify-center size-[32px] rounded-[8px] cursor-pointer outline-none transition-all duration-150 hover:bg-black/5 active:bg-black/10 active:scale-90">
+              <svg fill="none" viewBox="0 0 14 14" style={{ width: 13, height: 13 }}><path d="M1 1L13 13M13 1L1 13" stroke="#a0a0a0" strokeWidth="1.6" strokeLinecap="round" /></svg>
             </button>
           )}
+          <button onClick={readCard}
+            className={`relative shrink-0 flex items-center gap-[8px] h-[44px] px-[14px] rounded-[8px] text-[14px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-[#47d465] ${dark ? "hover:bg-white/10 active:bg-white/15" : "hover:bg-black/5 active:bg-black/10"}`}
+            style={{ color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+            <svg fill="none" viewBox="0 0 24 24" style={{ width: 20, height: 20 }}><rect x="3" y="6" width="18" height="12" rx="2" stroke="#47d465" strokeWidth="1.7" /><path d="M3 10H21" stroke="#47d465" strokeWidth="1.7" /></svg>
+            Считать карту
+            <span className="absolute text-[8px] opacity-50" style={{ top: 2, right: 6 }}>F4</span>
+          </button>
         </div>
+        <p className="text-[13px] leading-[1.3]" style={{ marginTop: 10, minHeight: 34, color: statusColor }}>{status}</p>
 
-        {/* "Ок" button — left-30 top-198 w-262 h-56; disabled until valid */}
-        <button
-          onClick={handleOk}
-          disabled={!isValid && !accepted}
-          className={[
-            "absolute rounded-[10px] text-[14px] font-semibold text-[#2b2b2b] select-none transition-all duration-150",
-            (isValid || accepted)
-              ? "cursor-pointer hover:bg-[#f0fdf4] active:bg-[#dcfce7] active:scale-[0.98]"
-              : "opacity-52 cursor-default",
-          ].join(" ")}
-          style={{ left: 30, top: 198, width: 262, height: 56,
-            border: "1px solid #47d465", fontFamily: "Raleway, sans-serif" }}>
-          Ок
-        </button>
-
-        {/* "Отмена" button — left-304 top-198 w-262 h-56 */}
-        <button
-          onClick={onClose}
-          className="absolute rounded-[10px] text-[14px] font-semibold text-[#2b2b2b] cursor-pointer select-none transition-all duration-150 hover:bg-[#f5f5f5] active:bg-[#ebebeb] active:scale-[0.98]"
-          style={{ left: 304, top: 198, width: 262, height: 56,
-            border: "1px solid #47d465", fontFamily: "Raleway, sans-serif" }}>
-          Отмена
-        </button>
+        <div className="flex gap-[14px]" style={{ marginTop: 14 }}>
+          <button onClick={submit}
+            className={`relative flex-1 h-[56px] rounded-[10px] text-[15px] font-semibold text-white bg-[#47d465] select-none outline-none transition-all duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#47d465] ${kind ? "cursor-pointer hover:bg-[#3dc05a] active:bg-[#30a84a] active:scale-[0.98]" : "opacity-45 cursor-default"}`}>
+            Ок<span className="absolute top-[4px] right-[10px] text-[9px] opacity-70">Enter</span>
+          </button>
+          <button onClick={onClose}
+            className={`relative flex-1 h-[56px] rounded-[10px] text-[15px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#47d465] ${dark ? "hover:bg-white/10 active:bg-white/15" : "hover:bg-[#f0fdf4] active:bg-[#dcfce7]"}`}
+            style={{ color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+            Отмена<span className="absolute top-[4px] right-[10px] text-[9px] opacity-50" style={{ color: c.textSec }}>Esc</span>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -3872,7 +3855,7 @@ function AdminScreen({ onClose, onClientInfo }: { onClose: () => void; onClientI
 // Prototype data: a card number ending in "0" has no debts and nothing to return,
 // any other number gets generated sample data (so both outcomes can be demoed).
 
-type MenuAction = "debts" | "returnCard" | "returnCheck" | "returnCarrier" | "pledgeTake" | "pledgeReturn" | "pledgeCells" | "clientSearch" | "cardHistory";
+type MenuAction = "debts" | "returnCard" | "returnCheck" | "returnCarrier" | "pledgeTake" | "pledgeReturn" | "pledgeCells" | "clientSearch" | "cardHistory" | "preorders" | "cardExtra" | "cardExtraSearch" | "service" | "cardBlock" | "cardUnblock";
 
 const cardHasData = (card: string) => !card.trim().endsWith("0");
 const genCardNumber = () => Math.random().toString(16).slice(2, 9).toUpperCase().padEnd(7, "A") + String(1 + Math.floor(Math.random() * 9));
@@ -4243,6 +4226,45 @@ function PledgeTypeModal({ dark, card, onPick, onCancel }: { dark: boolean; card
   );
 }
 
+function ChoiceModal({ dark, title, subtitle, options, onPick, onCancel }: {
+  dark: boolean; title: string; subtitle?: string; options: string[]; onPick: (o: string) => void; onCancel: () => void;
+}) {
+  const c = th(dark);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+      const i = Number(e.key) - 1;
+      if (Number.isInteger(i) && i >= 0 && i < options.length) onPick(options[i]);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [options, onPick, onCancel]);
+  return (
+    <WinFrame dark={dark} title={title} subtitle={subtitle} width={596} onClose={onCancel}>
+      <div className="flex flex-col" style={{ gap: 12, marginTop: 24 }}>
+        {options.map((o, i) => (
+          <button key={o} onClick={() => onPick(o)}
+            className={`relative h-[72px] rounded-[10px] text-[18px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#47d465] ${dark ? "hover:bg-[#444443] active:bg-[#4d4d4b]" : "hover:bg-[#ececec] active:bg-[#e0e0e0]"}`}
+            style={{ backgroundColor: c.inputBg, color: c.textPrimary }}>
+            {o}
+            <span className="absolute text-[11px] opacity-55" style={{ top: 8, right: 14, color: c.textSec }}>{i + 1} (Num{i + 1})</span>
+          </button>
+        ))}
+        <button onClick={onCancel} className={`${winOutline(dark)} mt-[10px]`} style={{ color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+          Отмена
+          <span className="absolute top-[4px] right-[10px] text-[9px] opacity-50" style={{ color: c.textSec }}>Esc</span>
+        </button>
+      </div>
+    </WinFrame>
+  );
+}
+
+// Services this till provides, with the price charged per pass.
+const TILL_SERVICES: { name: string; price: number }[] = [
+  { name: "Общая зона", price: 250 },
+  { name: "Расписание для мероприятий", price: 400 },
+];
+
 function PledgeCommentModal({ dark, type, onOk, onCancel }: { dark: boolean; type: PledgeType; onOk: (comment: string) => void; onCancel: () => void }) {
   const c = th(dark);
   const [text, setText] = useState("");
@@ -4343,7 +4365,39 @@ const SEARCH_BY: { id: SearchBy; label: string }[] = [
   { id: "phone", label: "Телефон" }, { id: "email", label: "Почта" }, { id: "name", label: "ФИО" }, { id: "uid", label: "UID карты" },
 ];
 
-function ClientSearchWindow({ dark, onClose, onOk }: { dark: boolean; onClose: () => void; onOk: () => void }) {
+type BlockReason = "Поломка" | "Потеря" | "Другое";
+type BlockAction = "Замена" | "Блокировка с изъятием" | "Временная блокировка";
+const BLOCK_REASONS: BlockReason[] = ["Поломка", "Потеря", "Другое"];
+const BLOCK_ACTIONS: BlockAction[] = ["Замена", "Блокировка с изъятием", "Временная блокировка"];
+
+function RadioRow<T extends string>({ dark, label, options, value, onChange }: { dark: boolean; label: string; options: T[]; value: T | null; onChange: (v: T) => void }) {
+  const c = th(dark);
+  return (
+    <div>
+      <p className="text-[15px] font-semibold" style={{ color: c.textPrimary, marginBottom: 10 }}>{label}</p>
+      <div role="radiogroup" aria-label={label} className="flex items-center" style={{ gap: 28 }}>
+        {options.map((o) => (
+          <button key={o} role="radio" aria-checked={value === o} onClick={() => onChange(o)}
+            className="group flex items-center gap-[8px] text-[15px] cursor-pointer select-none outline-none rounded-[6px] focus-visible:ring-2 focus-visible:ring-[#47d465]"
+            style={{ color: c.textPrimary }}>
+            <span className="flex items-center justify-center size-[20px] rounded-full transition-colors duration-150 group-hover:bg-[#47d465]/15 group-active:bg-[#47d465]/30"
+              style={{ boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+              {value === o && <span className="size-[10px] rounded-full bg-[#47d465]" />}
+            </span>
+            {o}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ClientSearchWindow({ dark, onClose, onOk, title = "Поиск клиента", withBlock = false }: {
+  dark: boolean; onClose: () => void; title?: string; withBlock?: boolean;
+  onOk: (client: (typeof SAMPLE_CLIENTS)[number], block?: { reason: BlockReason; action: BlockAction }) => void;
+}) {
+  const [reason, setReason] = useState<BlockReason | null>(null);
+  const [blockAction, setBlockAction] = useState<BlockAction | null>(null);
   const c = th(dark);
   const [query, setQuery] = useState("");
   const [by, setBy] = useState<SearchBy>("uid");
@@ -4362,6 +4416,12 @@ function ClientSearchWindow({ dark, onClose, onOk }: { dark: boolean; onClose: (
     setResults(found);
     setPicked(found.length === 1 ? found[0].uid : null);
   };
+  const pickedClient = results?.find((cl) => cl.uid === picked) ?? null;
+  const canOk = !!pickedClient && (!withBlock || (!!reason && !!blockAction));
+  const confirm = () => {
+    if (!canOk || !pickedClient) return;
+    onOk(pickedClient, withBlock && reason && blockAction ? { reason, action: blockAction } : undefined);
+  };
   const readCard = () => {
     const cl = SAMPLE_CLIENTS[Math.floor(Math.random() * SAMPLE_CLIENTS.length)];
     setBy("uid"); setQuery(cl.uid); runSearch(cl.uid, "uid");
@@ -4369,10 +4429,10 @@ function ClientSearchWindow({ dark, onClose, onOk }: { dark: boolean; onClose: (
   const fieldStyle: React.CSSProperties = { backgroundColor: c.inputBg, color: c.textPrimary };
 
   return (
-    <WinFrame dark={dark} title="Поиск клиента" width={860} height={680} onClose={onClose}>
+    <WinFrame dark={dark} title={title} width={860} height={withBlock ? 900 : 680} onClose={onClose}>
       <div className="flex shrink-0" style={{ gap: 12, marginTop: 22 }}>
         <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { if (picked && results) onOk(); else runSearch(); } }}
+          onKeyDown={(e) => { if (e.key === "Enter") { if (canOk) confirm(); else runSearch(); } }}
           placeholder={by === "phone" ? "8 900 000 00 00" : by === "email" ? "name@mail.ru" : by === "name" ? "Фамилия Имя Отчество" : "UID карты"}
           aria-label="Строка поиска" className={`${winField(dark)} flex-1`} style={fieldStyle} />
         <button onClick={() => runSearch()} className={winGreen(!!query.trim())} style={{ width: 170, height: 48 }}>Поиск</button>
@@ -4400,8 +4460,14 @@ function ClientSearchWindow({ dark, onClose, onOk }: { dark: boolean; onClose: (
           activeKey={picked} onRowClick={setPicked}
           empty={results === null ? "Введите запрос и нажмите «Поиск» или считайте карту" : "Клиенты не найдены"} />
       </div>
+      {withBlock && (
+        <div className="flex flex-col shrink-0" style={{ gap: 18, marginTop: 20 }}>
+          <RadioRow dark={dark} label="Причина" options={BLOCK_REASONS} value={reason} onChange={setReason} />
+          <RadioRow dark={dark} label="Действие" options={BLOCK_ACTIONS} value={blockAction} onChange={setBlockAction} />
+        </div>
+      )}
       <div className="flex justify-end shrink-0" style={{ gap: 12, marginTop: 20 }}>
-        <button onClick={() => picked && onOk()} className={winGreen(!!picked)} style={{ width: 180 }}>
+        <button onClick={confirm} className={winGreen(canOk)} style={{ width: 180 }}>
           OK<span className="absolute top-[4px] right-[10px] text-[9px] opacity-70">Enter</span>
         </button>
         <button onClick={onClose} className={winOutline(dark)} style={{ width: 180, color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
@@ -4460,6 +4526,358 @@ function CardHistoryWindow({ dark, card, onClose }: { dark: boolean; card: strin
   );
 }
 
+// ─── Preorders ────────────────────────────────────────────────────────────────
+
+interface PreorderItem { id: number; name: string; qty: number; price: number; sold: boolean; }
+interface PreorderContact { name: string; phone: string; email: string; uid?: string; }
+interface PreorderCompany { name: string; inn: string; }
+interface Preorder {
+  no: number; date: string; name: string; phone: string; email: string; birth: string; gender: string;
+  contact: PreorderContact | null; company: PreorderCompany | null; items: PreorderItem[];
+}
+
+const SAMPLE_COMPANIES: PreorderCompany[] = [
+  { name: "ООО «Ромашка»", inn: "7701234567" },
+  { name: "АО «Парк развлечений»", inn: "7812345678" },
+  { name: "ИП Иванов Сергей Петрович", inn: "502912345678" },
+  { name: "ООО «Детский праздник»", inn: "6658123456" },
+];
+
+function seedPreorders(): Preorder[] {
+  const items = (n: number, start: number): PreorderItem[] =>
+    Array.from({ length: n }, (_, i) => ({ id: start + i, name: "Билет 1 час детский", qty: 1, price: 100, sold: false }));
+  return [
+    { no: 11500, date: "2026-10-13", name: "ДР группа", phone: "89123456788", email: "ds@gmail.com", birth: "", gender: "", contact: null, company: null, items: items(7, 1) },
+    { no: 11600, date: "2026-10-18", name: "Выпускной 4Б", phone: "89001112233", email: "danilov@mail.ru", birth: "", gender: "",
+      contact: { name: "Данилов Андрей Викторович", phone: "89001112233", email: "danilov@mail.ru", uid: "73512AA4" },
+      company: SAMPLE_COMPANIES[3], items: [...items(3, 20), { id: 30, name: "Безлимит", qty: 1, price: 800, sold: true }] },
+  ];
+}
+const fmtIsoDate = (iso: string) => (iso ? iso.split("-").reverse().join(".") : "");
+const fmtPhone = (d: string) => (d.length === 11 ? `${d[0]} ${d.slice(1, 4)} ${d.slice(4, 7)} ${d.slice(7, 9)} ${d.slice(9)}` : d);
+
+// Searchable picker: type to filter `options`, pick one; shows the choice as a chip.
+function LinkPicker<T>({ dark, label, placeholder, options, value, onChange, getTitle, getSub, allowFree, freeLabel }: {
+  dark: boolean; label: string; placeholder: string; options: T[]; value: T | null; onChange: (v: T | null) => void;
+  getTitle: (o: T) => string; getSub: (o: T) => string; allowFree?: (text: string) => T; freeLabel?: string;
+}) {
+  const c = th(dark);
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  const needle = q.trim().toLowerCase();
+  const list = options.filter((o) => !needle || `${getTitle(o)} ${getSub(o)}`.toLowerCase().replace(/\s/g, "").includes(needle.replace(/\s/g, "")));
+  const hover = dark ? "hover:bg-white/5 active:bg-white/10" : "hover:bg-black/[0.035] active:bg-black/[0.07]";
+
+  return (
+    <div ref={ref} className="relative">
+      <p className="text-[13px]" style={{ color: c.textSec, marginBottom: 6 }}>{label}</p>
+      {value ? (
+        <div className="flex items-center gap-[12px] rounded-[10px]" style={{ height: 56, padding: "0 8px 0 16px", backgroundColor: dark ? "#1f4a2a" : "#dffbe6" }}>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" stroke="#2fae4c" strokeWidth="1.8" strokeLinecap="round" /></svg>
+          <div className="flex-1 min-w-0">
+            <p className="text-[15px] font-semibold truncate" style={{ color: c.textPrimary }}>{getTitle(value)}</p>
+            <p className="text-[12px] truncate" style={{ color: c.textSec }}>{getSub(value)}</p>
+          </div>
+          <button onClick={() => onChange(null)} aria-label="Отвязать"
+            className={`h-[38px] px-[12px] rounded-[8px] text-[13px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-[#47d465] ${dark ? "hover:bg-white/10 active:bg-white/15" : "hover:bg-black/5 active:bg-black/10"}`}
+            style={{ color: c.textPrimary }}>Отвязать</button>
+        </div>
+      ) : (
+        <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder={placeholder} aria-label={label}
+          onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
+          className={`w-full ${winField(dark)}`} style={{ height: 56, backgroundColor: "transparent", color: c.textPrimary, boxShadow: `inset 0 0 0 1px ${c.divider}` }} />
+      )}
+      {open && !value && (
+        <div className={`absolute left-0 right-0 rounded-[10px] ${RET_SCROLL}`}
+          style={{ top: "calc(100% + 6px)", zIndex: 5, maxHeight: 236, backgroundColor: c.sidebarBg, boxShadow: "0 10px 30px rgba(0,0,0,0.18)" }}>
+          {list.map((o) => (
+            <button key={getTitle(o) + getSub(o)} onClick={() => { onChange(o); setQ(""); setOpen(false); }}
+              className={`w-full text-left cursor-pointer select-none outline-none transition-colors duration-150 focus-visible:bg-[#47d465]/10 ${hover}`}
+              style={{ padding: "10px 16px", borderTop: `1px solid ${c.divider}` }}>
+              <p className="text-[14px] font-semibold" style={{ color: c.textPrimary }}>{getTitle(o)}</p>
+              <p className="text-[12px]" style={{ color: c.textSec }}>{getSub(o)}</p>
+            </button>
+          ))}
+          {allowFree && q.trim() && (
+            <button onClick={() => { onChange(allowFree(q.trim())); setQ(""); setOpen(false); }}
+              className={`w-full text-left cursor-pointer select-none outline-none text-[14px] font-semibold transition-colors duration-150 ${hover}`}
+              style={{ padding: "14px 16px", borderTop: `1px solid ${c.divider}`, color: "#2fae4c" }}>
+              + {freeLabel} «{q.trim()}»
+            </button>
+          )}
+          {list.length === 0 && !(allowFree && q.trim()) && (
+            <p className="text-[14px]" style={{ padding: "14px 16px", color: c.textSec }}>Ничего не найдено</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CreatePreorderDrawer({ dark, onClose, onSave }: { dark: boolean; onClose: () => void; onSave: (p: Omit<Preorder, "no" | "items">) => void }) {
+  const c = th(dark);
+  const [date, setDate] = useState(fmtDateOnlyInput(new Date()));
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [birth, setBirth] = useState("");
+  const [gender, setGender] = useState("");
+  const [contact, setContact] = useState<PreorderContact | null>(null);
+  const [company, setCompany] = useState<PreorderCompany | null>(null);
+  const [tried, setTried] = useState(false);
+  useEscape(onClose);
+
+  const phoneDigits = phone.replace(/\D/g, "");
+  const errors = {
+    date: !date, name: !name.trim(),
+    phone: !/^[78]\d{10}$/.test(phoneDigits),
+    email: !/^\S+@\S+\.\S+$/.test(email.trim()),
+  };
+  const valid = !Object.values(errors).some(Boolean);
+
+  // Linking a contact from the base fills the contact fields from their profile.
+  const linkContact = (cl: PreorderContact | null) => {
+    setContact(cl);
+    if (cl) { setPhone(fmtPhone(cl.phone)); setEmail(cl.email); }
+  };
+  const save = () => {
+    setTried(true);
+    if (!valid) return;
+    onSave({ date, name: name.trim(), phone: phoneDigits, email: email.trim(), birth, gender, contact, company });
+  };
+
+  const fieldStyle = (bad: boolean): React.CSSProperties => ({
+    backgroundColor: c.inputBg, color: c.textPrimary, colorScheme: dark ? "dark" : "light",
+    boxShadow: tried && bad ? "inset 0 0 0 1.5px rgba(249,91,28,0.6)" : undefined,
+  });
+  const label = (t: string, req?: boolean) => (
+    <p className="text-[13px]" style={{ color: c.textSec, marginBottom: 6 }}>{t}{req && <span style={{ color: "#F95B1C" }}>*</span>}</p>
+  );
+
+  return (
+    <div className="absolute inset-0" style={{ zIndex: 45 }}>
+      <div className="absolute inset-0 bg-[#323232] opacity-43" onClick={onClose} />
+      <div role="dialog" aria-label="Создать предзаказ" className="absolute top-0 right-0 bottom-0 flex flex-col transition-colors duration-300"
+        style={{ width: 760, backgroundColor: c.sidebarBg, boxShadow: "-12px 0 40px rgba(0,0,0,0.18)", animation: "preorderDrawerIn 220ms ease-out" }}>
+        <style>{"@keyframes preorderDrawerIn{from{transform:translateX(40px);opacity:.4}to{transform:none;opacity:1}}"}</style>
+        <div className="flex items-center justify-between shrink-0" style={{ padding: "30px 28px 10px 48px" }}>
+          <p className="font-bold text-[22px]" style={{ color: c.textPrimary }}>Создать предзаказ</p>
+          <button onClick={onClose} aria-label="Закрыть"
+            className="flex items-center justify-center size-[40px] rounded-[8px] cursor-pointer select-none outline-none transition-all duration-150 hover:bg-black/10 active:bg-black/15 active:scale-90 focus-visible:shadow-[inset_0_0_0_2px_#47d465]">
+            <svg viewBox="0 0 24 24" className="size-[22px]" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke={c.textPrimary} strokeWidth="2.2" strokeLinecap="round" /></svg>
+          </button>
+        </div>
+        <div className={`flex-1 min-h-0 flex flex-col ${RET_SCROLL}`} style={{ padding: "10px 48px 20px", gap: 16 }}>
+          <div>{label("Дата", true)}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Дата" className={`w-full ${winField(dark)} cursor-pointer`} style={{ ...fieldStyle(errors.date), height: 52 }} /></div>
+          <div>{label("Название", true)}<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Например, ДР группа" aria-label="Название" className={`w-full ${winField(dark)}`} style={{ ...fieldStyle(errors.name), height: 52 }} /></div>
+
+          <div className="rounded-[10px] flex flex-col" style={{ padding: 16, gap: 14, boxShadow: `inset 0 0 0 1px ${c.divider}` }}>
+            <p className="text-[15px] font-semibold" style={{ color: c.textPrimary }}>Привязка</p>
+            <LinkPicker dark={dark} label="Контакт из базы" placeholder="Найти по ФИО, телефону, почте или UID карты"
+              options={SAMPLE_CLIENTS as PreorderContact[]} value={contact} onChange={linkContact}
+              getTitle={(o) => o.name} getSub={(o) => `${fmtPhone(o.phone)} · ${o.email}${o.uid ? ` · UID ${o.uid}` : ""}`} />
+            <LinkPicker dark={dark} label="Юридическое лицо" placeholder="Введите название компании или ИНН"
+              options={SAMPLE_COMPANIES} value={company} onChange={setCompany}
+              getTitle={(o) => o.name} getSub={(o) => (o.inn ? `ИНН ${o.inn}` : "Новая компания")}
+              allowFree={(text) => ({ name: text, inn: "" })} freeLabel="Добавить компанию" />
+          </div>
+
+          <div>{label("Номер телефона", true)}<input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="8 900 000 00 00" inputMode="tel" aria-label="Номер телефона" className={`w-full ${winField(dark)}`} style={{ ...fieldStyle(errors.phone), height: 52 }} /></div>
+          <div className="flex" style={{ gap: 16 }}>
+            <div className="flex-1">{label("Дата рождения")}<input type="date" value={birth} onChange={(e) => setBirth(e.target.value)} aria-label="Дата рождения" className={`w-full ${winField(dark)} cursor-pointer`} style={{ ...fieldStyle(false), height: 52 }} /></div>
+            <div className="flex-1">
+              {label("Пол")}
+              <div className="relative">
+                <select value={gender} onChange={(e) => setGender(e.target.value)} aria-label="Пол" className={`w-full ${winField(dark)} cursor-pointer appearance-none pr-[38px]`} style={{ ...fieldStyle(false), height: 52 }}>
+                  <option value="">Не указан</option><option>Женский</option><option>Мужской</option>
+                </select>
+                <span className="absolute pointer-events-none" style={{ right: 12, top: 17, color: c.textPrimary }}><AdChevron up={false} /></span>
+              </div>
+            </div>
+          </div>
+          <div>{label("E-mail", true)}<input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@mail.ru" aria-label="E-mail" className={`w-full ${winField(dark)}`} style={{ ...fieldStyle(errors.email), height: 52 }} /></div>
+          {tried && !valid && <p className="text-[13px]" style={{ color: "#F95B1C" }}>Заполните обязательные поля: дата, название, телефон (11 цифр) и e-mail.</p>}
+        </div>
+        <div className="shrink-0" style={{ padding: "16px 48px 32px", borderTop: `1px solid ${c.divider}` }}>
+          <button onClick={save} className={winGreen(true)} style={{ width: 250 }}>Сохранить</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreorderScreen({ dark, onClose, onAddToSale }: { dark: boolean; onClose: () => void; onAddToSale: (items: PreorderItem[]) => void }) {
+  const c = th(dark);
+  const [orders, setOrders] = useState<Preorder[]>(seedPreorders);
+  const [activeNo, setActiveNo] = useState<number>(orders[0].no);
+  const [checked, setChecked] = useState<Set<number>>(new Set());
+  const [query, setQuery] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  useEffect(() => { if (!linkCopied) return; const t = setTimeout(() => setLinkCopied(false), 1800); return () => clearTimeout(t); }, [linkCopied]);
+  useEscape(() => { if (!creating) onClose(); });
+
+  const q = query.trim().toLowerCase();
+  const qDigits = q.replace(/\D/g, "");
+  const visible = orders.filter((o) => !q ||
+    (qDigits.length >= 3 && o.phone.includes(qDigits)) || fmtIsoDate(o.date).includes(q) ||
+    o.name.toLowerCase().includes(q) || String(o.no).includes(q) ||
+    (o.company?.name.toLowerCase().includes(q) ?? false) || (o.contact?.name.toLowerCase().includes(q) ?? false));
+  const active = orders.find((o) => o.no === activeNo) ?? null;
+  const openItems = active?.items.filter((i) => !i.sold) ?? [];
+  const allChecked = openItems.length > 0 && openItems.every((i) => checked.has(i.id));
+  const selected = openItems.filter((i) => checked.has(i.id));
+  const totalQty = active?.items.reduce((s, i) => s + i.qty, 0) ?? 0;
+  const totalSum = active?.items.reduce((s, i) => s + i.qty * i.price, 0) ?? 0;
+
+  const pick = (no: number) => { setActiveNo(no); setChecked(new Set()); };
+  const toggle = (id: number) => setChecked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggleSold = (id: number) => setOrders((prev) => prev.map((o) => (o.no !== activeNo ? o : { ...o, items: o.items.map((i) => (i.id === id ? { ...i, sold: !i.sold } : i)) })));
+  const addToSale = () => {
+    if (selected.length === 0) return;
+    onAddToSale(selected);
+    setOrders((prev) => prev.map((o) => (o.no !== activeNo ? o : { ...o, items: o.items.map((i) => (checked.has(i.id) ? { ...i, sold: true } : i)) })));
+    setChecked(new Set());
+  };
+  const copyLink = () => {
+    try { void navigator.clipboard?.writeText(`https://pay.example.ru/prepay/${activeNo}`); } catch { /* clipboard unavailable — still show feedback */ }
+    setLinkCopied(true);
+  };
+
+  const mint = dark ? "#1f4a2a" : "#dffbe6";
+  const rowHover = dark ? "hover:bg-white/5 active:bg-white/10" : "hover:bg-black/[0.035] active:bg-black/[0.07]";
+  const panel: React.CSSProperties = { backgroundColor: c.sidebarBg, boxShadow: `inset 0 0 0 1px ${c.divider}` };
+  const LEFT_COLS = "0.8fr 1fr 1.6fr";
+  const RIGHT_COLS = "110px 1.8fr 0.7fr 0.7fr 90px";
+
+  return (
+    <div className="absolute inset-0 flex flex-col transition-colors duration-300" style={{ zIndex: 38, backgroundColor: c.screenBg, padding: "18px 32px 28px 99px" }}>
+      <div className="flex items-center shrink-0" style={{ gap: 24, height: 56 }}>
+        <button onClick={onClose} aria-label="Назад"
+          className="flex items-center gap-[10px] cursor-pointer select-none outline-none rounded-[8px] transition-opacity duration-150 hover:opacity-70 active:opacity-50 focus-visible:ring-2 focus-visible:ring-[#47d465]">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none"><path d="M15 5l-7 7 7 7" stroke={c.textPrimary} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <span className="font-bold text-[24px] tracking-[0.3px] whitespace-nowrap" style={{ color: c.textPrimary }}>Управление предзаказами</span>
+        </button>
+        <div className="relative" style={{ width: 420 }}>
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Искать по телефону или дате" aria-label="Поиск предзаказа"
+            className={`w-full ${winField(dark)} pr-[44px]`} style={{ height: 48, backgroundColor: c.sidebarBg, color: c.textPrimary }} />
+          <svg viewBox="0 0 24 24" className="absolute pointer-events-none" style={{ right: 14, top: 13, width: 22, height: 22 }} fill="none">
+            <rect x="3.5" y="5" width="17" height="15" rx="2.5" stroke={c.textSec} strokeWidth="1.5" /><path d="M3.5 9.5H20.5M8 3v4M16 3v4" stroke={c.textSec} strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </div>
+        <span className="flex-1" />
+        <button onClick={() => setCreating(true)}
+          className="flex items-center gap-[10px] h-[48px] px-[20px] rounded-[10px] bg-[#303030] text-white text-[15px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 hover:bg-[#404040] active:bg-[#1a1a1a] active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#47d465]">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M12 5V19M5 12H19" stroke="white" strokeWidth="2.2" strokeLinecap="round" /></svg>
+          Создать предзаказ
+        </button>
+      </div>
+
+      <div className="flex flex-1 min-h-0" style={{ gap: 16, marginTop: 28 }}>
+        <section className="flex-1 min-w-0 flex flex-col rounded-[10px] overflow-hidden" style={panel}>
+          <div className="grid items-center shrink-0 text-[14px]" style={{ gridTemplateColumns: LEFT_COLS, height: 50, padding: "0 18px", backgroundColor: mint, color: c.textPrimary }}>
+            <span>№</span><span>Дата</span><span>Название</span>
+          </div>
+          <div className={`flex-1 min-h-0 ${RET_SCROLL}`}>
+            {visible.length === 0 && <p className="text-center text-[14px]" style={{ color: c.textSec, padding: "40px 20px" }}>Предзаказы не найдены</p>}
+            {visible.map((o) => {
+              const on = o.no === activeNo;
+              return (
+                <button key={o.no} onClick={() => pick(o.no)}
+                  className={`w-full grid items-center text-left text-[14px] cursor-pointer select-none outline-none transition-colors duration-150 focus-visible:bg-[#47d465]/10 ${on ? "" : rowHover}`}
+                  style={{ gridTemplateColumns: LEFT_COLS, minHeight: 50, padding: "8px 18px", color: c.textPrimary, backgroundColor: on ? c.inputBg : undefined, borderTop: `1px solid ${c.divider}`, fontFeatureSettings: '"lnum","pnum"' }}>
+                  <span className={on ? "font-semibold" : ""}>{o.no}</span>
+                  <span>{fmtIsoDate(o.date)}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate">{o.name}</span>
+                    {(o.company || o.contact) && (
+                      <span className="block truncate text-[12px]" style={{ color: c.textSec }}>{[o.company?.name, o.contact?.name].filter(Boolean).join(" · ")}</span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="flex-1 min-w-0 flex flex-col rounded-[10px] overflow-hidden" style={panel}>
+          {active ? (
+            <>
+              <div className="flex items-center shrink-0 text-[14px]" style={{ gap: 24, height: 50, padding: "0 18px", backgroundColor: mint, color: c.textPrimary }}>
+                <span>№ {active.no}</span><span className="font-semibold truncate">{active.name}</span>
+                <span className="flex-1" />
+                <span className="truncate text-[12px]" style={{ color: c.textSec }}>{fmtPhone(active.phone)}</span>
+              </div>
+              {(active.contact || active.company) && (
+                <div className="flex flex-wrap shrink-0" style={{ gap: 8, padding: "10px 18px 0" }}>
+                  {active.contact && <span className="text-[12px] rounded-full px-[10px] py-[4px]" style={{ backgroundColor: c.inputBg, color: c.textPrimary }}>Контакт: {active.contact.name}</span>}
+                  {active.company && <span className="text-[12px] rounded-full px-[10px] py-[4px]" style={{ backgroundColor: c.inputBg, color: c.textPrimary }}>Юр. лицо: {active.company.name}{active.company.inn ? ` · ИНН ${active.company.inn}` : ""}</span>}
+                </div>
+              )}
+              <div className="grid items-center shrink-0 text-[14px]" style={{ gridTemplateColumns: RIGHT_COLS, height: 46, padding: "0 18px", color: c.textSec }}>
+                <span className="flex items-center gap-[8px]">
+                  <RetCheckbox checked={allChecked} onChange={() => setChecked(allChecked ? new Set() : new Set(openItems.map((i) => i.id)))} label={undefined} dark={dark} />
+                  <span className="text-[13px]">Все</span>
+                </span>
+                <span>Название</span><span className="text-center">Кол-во</span><span className="text-center">Цена</span><span className="text-center">Продано</span>
+              </div>
+              <div className={`flex-1 min-h-0 ${RET_SCROLL}`}>
+                {active.items.length === 0 && <p className="text-center text-[14px]" style={{ color: c.textSec, padding: "40px 20px" }}>В предзаказе пока нет позиций</p>}
+                {active.items.map((i) => (
+                  <div key={i.id} className={`grid items-center text-[14px] transition-colors duration-150 ${rowHover}`}
+                    style={{ gridTemplateColumns: RIGHT_COLS, height: 52, padding: "0 18px", color: c.textPrimary, borderTop: `1px solid ${c.divider}`, opacity: i.sold ? 0.55 : 1, fontFeatureSettings: '"lnum","pnum"' }}>
+                    <span>{!i.sold && <RetCheckbox checked={checked.has(i.id)} onChange={() => toggle(i.id)} dark={dark} />}</span>
+                    <span className="truncate pr-[8px]">{i.name}</span>
+                    <span className="text-center">{i.qty}</span>
+                    <span className="text-center">{i.price}</span>
+                    <span className="flex justify-center"><RetCheckbox checked={i.sold} onChange={() => toggleSold(i.id)} label={undefined} dark={dark} /></span>
+                  </div>
+                ))}
+              </div>
+              <div className="shrink-0 flex items-center" style={{ gap: 24, padding: "14px 18px", borderTop: `1px solid ${c.divider}`, color: c.textPrimary, fontFeatureSettings: '"lnum","pnum"' }}>
+                <span className="text-[14px]">Кол-во: <b>{totalQty}</b></span>
+                <span className="text-[14px]">Сумма: <b>{totalSum.toFixed(2)}</b></span>
+                <span className="flex-1" />
+                <button onClick={copyLink}
+                  className={`flex items-center gap-[8px] h-[40px] px-[12px] rounded-[8px] text-[14px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-[#47d465] ${dark ? "hover:bg-white/10 active:bg-white/15" : "hover:bg-[#f0fdf4] active:bg-[#dcfce7]"}`}
+                  style={{ color: "#2fae4c" }}>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" stroke="#2fae4c" strokeWidth="1.8" strokeLinecap="round" /></svg>
+                  {linkCopied ? "Ссылка скопирована" : "Ссылка на предоплату"}
+                </button>
+              </div>
+              <div className="shrink-0 flex justify-end" style={{ padding: "0 18px 18px" }}>
+                <button onClick={addToSale} className={winGreen(selected.length > 0)} style={{ width: 260 }}>
+                  Добавить в продажу{selected.length > 0 ? ` (${selected.length})` : ""}
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="text-center text-[14px]" style={{ color: c.textSec, padding: "40px 20px" }}>Выберите предзаказ</p>
+          )}
+        </section>
+      </div>
+
+      {creating && (
+        <CreatePreorderDrawer dark={dark} onClose={() => setCreating(false)}
+          onSave={(data) => {
+            const no = Math.max(...orders.map((o) => o.no)) + 100;
+            setOrders((prev) => [{ ...data, no, items: [] }, ...prev]);
+            pick(no);
+            setQuery("");
+            setCreating(false);
+          }} />
+      )}
+    </div>
+  );
+}
+
 type PendingAdd = { kind: "add"; product: Product; qty: number } | { kind: "qtyModal"; product: Product };
 
 function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onLogout: () => void; requireRegistration: boolean }) {
@@ -4475,12 +4893,19 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
   const [qtyProduct, setQtyProduct]           = useState<Product | null>(null);
   const [menuOpen, setMenuOpen]               = useState(false);
   const [showAdmin, setShowAdmin]             = useState(false);
-  const [scanFor, setScanFor]                 = useState<"debts" | "returnCard" | "returnCarrier" | "pledgeTake" | "pledgeReturn" | "cardHistory" | null>(null);
+  const [scanFor, setScanFor]                 = useState<"debts" | "returnCard" | "returnCarrier" | "pledgeTake" | "pledgeReturn" | "cardHistory" | "cardExtra" | "service" | "cardUnblock" | null>(null);
+  const [extraFor, setExtraFor]               = useState<string | null>(null);
+  const [servicePick, setServicePick]         = useState(false);
+  const [serviceName, setServiceName]         = useState<string | null>(null);
+  const [blockSearch, setBlockSearch]         = useState(false);
+  const [extraSearch, setExtraSearch]         = useState(false);
+  const [blockedCards, setBlockedCards]       = useState<Set<string>>(new Set());
   const [pledges, setPledges]                 = useState<Pledge[]>(seedPledges);
   const [pledgeStep, setPledgeStep]           = useState<{ stage: "type"; card: string } | { stage: "comment"; card: string; type: PledgeType } | null>(null);
   const [showPledgeCells, setShowPledgeCells] = useState(false);
   const [showClientSearch, setShowClientSearch] = useState(false);
   const [historyCard, setHistoryCard]         = useState<string | null>(null);
+  const [showPreorders, setShowPreorders]     = useState(false);
   const [returnWin, setReturnWin]             = useState<{ mode: "card"; card: string } | { mode: "check" } | null>(null);
   const [notice, setNotice]                   = useState<{ title: string; text: string; copyValue?: string } | null>(null);
   useEffect(() => { if (!adminMode) setShowAdmin(false); }, [adminMode]);
@@ -4543,6 +4968,11 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
     if (a === "returnCheck") setReturnWin({ mode: "check" });
     else if (a === "pledgeCells") setShowPledgeCells(true);
     else if (a === "clientSearch") setShowClientSearch(true);
+    else if (a === "preorders") setShowPreorders(true);
+    else if (a === "cardExtraSearch") setExtraSearch(true);
+    else if (a === "service") setServicePick(true);
+    else if (a === "cardBlock") setBlockSearch(true);
+    else if (a === "cardExtra") { setExtraFor(null); setScanFor("cardExtra"); }
     else setScanFor(a);
   };
 
@@ -4571,6 +5001,25 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
       setNotice({ title: `Верните залог из ячейки номер: ${existing.cell}`, text: `Тип залога: ${existing.type}${existing.comment ? `. Комментарий: ${existing.comment}` : ""}` });
     } else if (purpose === "cardHistory") {
       setHistoryCard(card);
+    } else if (purpose === "cardExtra") {
+      const owner = extraFor;
+      setExtraFor(null);
+      if (!cardHasData(card) || blockedCards.has(card)) {
+        setNotice({ title: "Нет возможности выдать карту", text: blockedCards.has(card) ? "Карта заблокирована и не может быть выдана." : "Карта уже привязана к другому клиенту или неисправна.", copyValue: card });
+        return;
+      }
+      setNotice({ title: "Карта привязана успешно", text: owner ? `Дополнительная карта привязана к клиенту ${owner}.` : "Дополнительная карта привязана к счёту клиента.", copyValue: card });
+    } else if (purpose === "service") {
+      const svc = TILL_SERVICES.find((x) => x.name === serviceName);
+      setServiceName(null);
+      if (!svc) return;
+      if (blockedCards.has(card)) { setNotice({ title: "Проход запрещён", text: "Карта заблокирована.", copyValue: card }); return; }
+      if (!cardHasData(card)) { setNotice({ title: "Проход запрещён", text: `Недостаточно средств на карте для услуги «${svc.name}».`, copyValue: card }); return; }
+      setNotice({ title: "Проход разрешён", text: `Услуга: ${svc.name}. Списано за проход: ${svc.price} ₽. Остаток на карте: ${1400 - svc.price} ₽.` });
+    } else if (purpose === "cardUnblock") {
+      if (!blockedCards.has(card)) { setNotice({ title: "Карта не заблокирована", text: "Эта карта активна, разблокировка не требуется.", copyValue: card }); return; }
+      setBlockedCards((prev) => { const n = new Set(prev); n.delete(card); return n; });
+      setNotice({ title: "Карта разблокирована", text: "Карту снова можно использовать.", copyValue: card });
     }
   };
 
@@ -4601,6 +5050,10 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
       <ProductGrid dark={effectiveDark} onAdd={handleProductClick} onLongPressAdd={handleLongPressAdd} />
       <BottomBar dark={effectiveDark} onClientInfo={() => setShowCardScan(true)} onAction={handleAction} />
 
+      {showPreorders && (
+        <PreorderScreen dark={effectiveDark} onClose={() => setShowPreorders(false)}
+          onAddToSale={(items) => setCartItems((prev) => [...prev, ...items.flatMap((i) => Array.from({ length: i.qty }, () => ({ id: nextCartId++, productId: 0, name: i.name, price: i.price })))])} />
+      )}
       {showAdmin && adminMode && (
         <AdminScreen onClose={() => setShowAdmin(false)} onClientInfo={() => setShowCardScan(true)} />
       )}
@@ -4646,12 +5099,19 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
         />
       )}
       {showPhone && (
-        <PhoneModal
+        <ClientIdentifyModal
+          dark={effectiveDark}
           onClose={() => setShowPhone(false)}
-          onSuccess={(phone) => {
+          onPhone={(phone) => {
             setShowPhone(false);
             setRegisteredPhone(phone);
             setShowRegister(true);
+          }}
+          onCard={(uid) => {
+            setShowPhone(false);
+            const found = SAMPLE_CLIENTS.find((cl) => cl.uid === uid);
+            setCurrentClient({ name: found?.name ?? "Гость по карте", phone: found ? found.phone : `UID ${uid}` });
+            setGuests([]);
           }}
         />
       )}
@@ -4674,7 +5134,7 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
       )}
       {scanFor && (
         <CardScanModal
-          title={({ debts: "Считайте карту для гашения долгов", returnCarrier: "Считайте карту для возврата носителя", returnCard: "Считайте карту для возврата", pledgeTake: "Считайте карту для залога", pledgeReturn: "Считайте карту для возврата залога", cardHistory: "Считайте карту" } as const)[scanFor]}
+          title={({ debts: "Считайте карту для гашения долгов", returnCarrier: "Считайте карту для возврата носителя", returnCard: "Считайте карту для возврата", pledgeTake: "Считайте карту для залога", pledgeReturn: "Считайте карту для возврата залога", cardHistory: "Считайте карту", cardExtra: "Считайте дополнительную карту", service: "Считайте карту для прохода", cardUnblock: "Считайте карту для разблокировки" } as const)[scanFor]}
           onClose={() => setScanFor(null)}
           onSuccess={handleScanned}
         />
@@ -4700,6 +5160,24 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
       {showClientSearch && (
         <ClientSearchWindow dark={effectiveDark} onClose={() => setShowClientSearch(false)}
           onOk={() => { setShowClientSearch(false); setShowClientInfo(true); }} />
+      )}
+      {extraSearch && (
+        <ClientSearchWindow dark={effectiveDark} title="Доп. карта с поиском" onClose={() => setExtraSearch(false)}
+          onOk={(client) => { setExtraSearch(false); setExtraFor(client.name); setScanFor("cardExtra"); }} />
+      )}
+      {blockSearch && (
+        <ClientSearchWindow dark={effectiveDark} title="Блокировать" withBlock onClose={() => setBlockSearch(false)}
+          onOk={(client, block) => {
+            setBlockSearch(false);
+            setBlockedCards((prev) => new Set(prev).add(client.uid));
+            const tail = block?.action === "Замена" ? " Выдайте клиенту новую карту." : block?.action === "Блокировка с изъятием" ? " Изымите карту у клиента." : " Карту можно будет разблокировать позже.";
+            setNotice({ title: "Карта заблокирована", text: `${client.name}. Причина: ${block?.reason}. Действие: ${block?.action}.${tail}`, copyValue: client.uid });
+          }} />
+      )}
+      {servicePick && (
+        <ChoiceModal dark={effectiveDark} title="Выберите услугу" subtitle="Оказание услуги" options={TILL_SERVICES.map((x) => x.name)}
+          onPick={(name) => { setServicePick(false); setServiceName(name); setScanFor("service"); }}
+          onCancel={() => setServicePick(false)} />
       )}
       {historyCard && <CardHistoryWindow dark={effectiveDark} card={historyCard} onClose={() => setHistoryCard(null)} />}
       {notice && <NoticeModal dark={effectiveDark} {...notice} onClose={() => setNotice(null)} />}
