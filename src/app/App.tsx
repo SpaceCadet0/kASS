@@ -656,16 +656,16 @@ const MENU_SECTIONS: MenuSection[] = [
       { label: "Возврат носителя", badge: "Ctrl+Backspace", action: "returnCarrier" },
   ]},
   { key: "pledge", label: "Залог", icon: "lock", leaves: [
-      { label: "По карте" },
-      { label: "Вернуть залог" },
-      { label: "Ячейки с залогом" },
+      { label: "По карте", action: "pledgeTake" },
+      { label: "Вернуть залог", action: "pledgeReturn" },
+      { label: "Ячейки с залогом", action: "pledgeCells" },
   ]},
   { key: "client", label: "Информация о клиенте", icon: "user", leaves: [
       { label: "По карте", badge: "F1", opensClientInfo: true },
       { label: "По бортовому" },
       { label: "По телефону", badge: "F2" },
-      { label: "Поиск клиента..." },
-      { label: "История по карте" },
+      { label: "Поиск клиента...", action: "clientSearch" },
+      { label: "История по карте", action: "cardHistory" },
   ]},
   { key: "cards", label: "Карты", icon: "card", columns: [
       [
@@ -3872,7 +3872,7 @@ function AdminScreen({ onClose, onClientInfo }: { onClose: () => void; onClientI
 // Prototype data: a card number ending in "0" has no debts and nothing to return,
 // any other number gets generated sample data (so both outcomes can be demoed).
 
-type MenuAction = "debts" | "returnCard" | "returnCheck" | "returnCarrier";
+type MenuAction = "debts" | "returnCard" | "returnCheck" | "returnCarrier" | "pledgeTake" | "pledgeReturn" | "pledgeCells" | "clientSearch" | "cardHistory";
 
 const cardHasData = (card: string) => !card.trim().endsWith("0");
 const genCardNumber = () => Math.random().toString(16).slice(2, 9).toUpperCase().padEnd(7, "A") + String(1 + Math.floor(Math.random() * 9));
@@ -4130,6 +4130,336 @@ function NoticeModal({ dark, title, text, copyValue, onClose }: { dark: boolean;
   );
 }
 
+// ─── Pledge / client search / card history windows ───────────────────────────
+
+type PledgeType = "Документы" | "Деньги" | "Водительское удостоверение";
+const PLEDGE_TYPES: PledgeType[] = ["Документы", "Деньги", "Водительское удостоверение"];
+interface Pledge { cell: number; type: PledgeType; card: string; comment: string; place: string; takenAt: Date; returnedAt: Date | null; }
+
+function seedPledges(): Pledge[] {
+  const d1 = new Date(); d1.setDate(d1.getDate() - 5); d1.setHours(14, 33, 0, 0);
+  const d2 = new Date(); d2.setHours(Math.max(0, d2.getHours() - 1), 1, 0, 0);
+  return [
+    { cell: 1, type: "Деньги", card: "73512AA4", comment: "", place: "Гардероб", takenAt: d1, returnedAt: null },
+    { cell: 2, type: "Документы", card: "03F300A4", comment: "", place: "Сейф", takenAt: d2, returnedAt: null },
+  ];
+}
+const firstFreeCell = (list: Pledge[]) => { let n = 1; while (list.some((p) => !p.returnedAt && p.cell === n)) n++; return n; };
+
+// Shared look for the light/dark modal buttons used across these windows.
+const winOutline = (dark: boolean) =>
+  `relative h-[56px] rounded-[10px] text-[15px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#47d465] ${dark ? "hover:bg-white/10 active:bg-white/15" : "hover:bg-[#f0fdf4] active:bg-[#dcfce7]"}`;
+const winGreen = (on: boolean) =>
+  `relative h-[56px] rounded-[10px] text-[15px] font-semibold text-white bg-[#47d465] select-none outline-none transition-all duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#47d465] ${on ? "cursor-pointer hover:bg-[#3dc05a] active:bg-[#30a84a] active:scale-[0.98]" : "opacity-45 cursor-default"}`;
+const winField = (dark: boolean) =>
+  "h-[48px] rounded-[10px] px-[14px] text-[15px] outline-none transition-[background-color,box-shadow] duration-150 focus:shadow-[inset_0_0_0_1.5px_#47d465] " + (dark ? "hover:bg-[#444443]" : "hover:bg-[#efefef]");
+
+function useEscape(handler: () => void) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") handler(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [handler]);
+}
+
+function WinFrame({ dark, title, subtitle, width, height, onClose, children, z = 60 }: {
+  dark: boolean; title: string; subtitle?: string; width: number; height?: number; onClose: () => void; children: React.ReactNode; z?: number;
+}) {
+  const c = th(dark);
+  return (
+    <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: z }}>
+      <div className="absolute inset-0 bg-[#323232] opacity-43" onClick={onClose} />
+      <div role="dialog" aria-label={title} className="relative flex flex-col rounded-[10px] transition-colors duration-300"
+        style={{ width, height, padding: "30px 32px 28px", backgroundColor: c.sidebarBg }}>
+        <button onClick={onClose} aria-label="Закрыть"
+          className="absolute flex items-center justify-center size-[36px] rounded-[8px] cursor-pointer select-none outline-none transition-all duration-150 hover:bg-black/10 active:bg-black/15 active:scale-90 focus-visible:shadow-[inset_0_0_0_2px_#47d465]"
+          style={{ right: 22, top: 22 }}>
+          <svg viewBox="0 0 24 24" className="size-[20px]" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke={c.textPrimary} strokeWidth="2.2" strokeLinecap="round" /></svg>
+        </button>
+        <p className="font-bold text-[24px] shrink-0" style={{ color: c.textPrimary, paddingRight: 40 }}>{title}</p>
+        {subtitle && <p className="text-[14px] shrink-0" style={{ color: c.textSec, marginTop: 4 }}>{subtitle}</p>}
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function WinTable({ dark, cols, headers, rows, activeKey, onRowClick, empty }: {
+  dark: boolean; cols: string; headers: string[]; rows: { key: string; cells: React.ReactNode[] }[];
+  activeKey?: string | null; onRowClick?: (key: string) => void; empty: string;
+}) {
+  const c = th(dark);
+  const mint = dark ? "#1f4a2a" : "#dffbe6";
+  return (
+    <div className="flex-1 min-h-0 flex flex-col rounded-[10px] overflow-hidden" style={{ boxShadow: `inset 0 0 0 1px ${c.divider}` }}>
+      <div className="grid items-center shrink-0 text-[13px] font-semibold" style={{ gridTemplateColumns: cols, height: 42, padding: "0 14px", backgroundColor: c.inputBg, color: c.textSec }}>
+        {headers.map((h) => <span key={h} className="truncate pr-[8px]">{h}</span>)}
+      </div>
+      <div className={`flex-1 min-h-0 ${RET_SCROLL}`}>
+        {rows.length === 0 && <p className="text-center text-[14px]" style={{ color: c.textSec, padding: "40px 20px" }}>{empty}</p>}
+        {rows.map((r) => {
+          const active = r.key === activeKey;
+          return (
+            <div key={r.key} onClick={() => onRowClick?.(r.key)}
+              className={`grid items-center text-[14px] select-none transition-colors duration-150 ${onRowClick ? "cursor-pointer" : ""} ${active ? "" : dark ? "hover:bg-white/5 active:bg-white/10" : "hover:bg-black/[0.035] active:bg-black/[0.07]"}`}
+              style={{ gridTemplateColumns: cols, height: 50, padding: "0 14px", color: c.textPrimary, backgroundColor: active ? mint : undefined, borderTop: `1px solid ${c.divider}`, fontFeatureSettings: '"lnum","pnum"' }}>
+              {r.cells.map((cell, i) => <span key={i} className="truncate pr-[8px]">{cell}</span>)}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function PledgeTypeModal({ dark, card, onPick, onCancel }: { dark: boolean; card: string; onPick: (t: PledgeType) => void; onCancel: () => void }) {
+  const c = th(dark);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+      const i = ["1", "2", "3"].indexOf(e.key);
+      if (i >= 0) onPick(PLEDGE_TYPES[i]);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onPick, onCancel]);
+  return (
+    <WinFrame dark={dark} title="Выберите тип залога" subtitle={`Карта ${card}`} width={596} onClose={onCancel}>
+      <div className="flex flex-col" style={{ gap: 12, marginTop: 24 }}>
+        {PLEDGE_TYPES.map((t, i) => (
+          <button key={t} onClick={() => onPick(t)}
+            className={`relative h-[72px] rounded-[10px] text-[18px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#47d465] ${dark ? "hover:bg-[#444443] active:bg-[#4d4d4b]" : "hover:bg-[#ececec] active:bg-[#e0e0e0]"}`}
+            style={{ backgroundColor: c.inputBg, color: c.textPrimary }}>
+            {t}
+            <span className="absolute text-[11px] opacity-55" style={{ top: 8, right: 14, color: c.textSec }}>{i + 1} (Num{i + 1})</span>
+          </button>
+        ))}
+        <button onClick={onCancel} className={`${winOutline(dark)} mt-[10px]`} style={{ color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+          Отмена
+          <span className="absolute top-[4px] right-[10px] text-[9px] opacity-50" style={{ color: c.textSec }}>Esc</span>
+        </button>
+      </div>
+    </WinFrame>
+  );
+}
+
+function PledgeCommentModal({ dark, type, onOk, onCancel }: { dark: boolean; type: PledgeType; onOk: (comment: string) => void; onCancel: () => void }) {
+  const c = th(dark);
+  const [text, setText] = useState("");
+  useEscape(onCancel);
+  return (
+    <WinFrame dark={dark} title="Комментарий к залогу" subtitle={`Тип залога: ${type}`} width={596} onClose={onCancel}>
+      <textarea autoFocus value={text} onChange={(e) => setText(e.target.value)} maxLength={200}
+        placeholder="Необязательно"
+        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onOk(text.trim()); } }}
+        className={`${winField(dark)} resize-none py-[12px] h-[120px]`} style={{ marginTop: 22, backgroundColor: c.inputBg, color: c.textPrimary }} />
+      <div className="flex" style={{ gap: 14, marginTop: 22 }}>
+        <button onClick={() => onOk(text.trim())} className={`${winGreen(true)} flex-1`}>
+          Ок<span className="absolute top-[4px] right-[10px] text-[9px] opacity-70">Enter</span>
+        </button>
+        <button onClick={onCancel} className={`${winOutline(dark)} flex-1`} style={{ color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+          Отмена<span className="absolute top-[4px] right-[10px] text-[9px] opacity-50" style={{ color: c.textSec }}>Esc</span>
+        </button>
+      </div>
+    </WinFrame>
+  );
+}
+
+const PLEDGE_PLACES = ["Гардероб", "Сейф"];
+const fmtDateOnlyInput = (d: Date) => toLocalInput(d).slice(0, 10);
+
+function PledgeCellsWindow({ dark, pledges, onClose }: { dark: boolean; pledges: Pledge[]; onClose: () => void }) {
+  const c = th(dark);
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  const [place, setPlace] = useState("all");
+  const [from, setFrom] = useState(fmtDateOnlyInput(weekAgo));
+  const [to, setTo] = useState(fmtDateOnlyInput(tomorrow));
+  const [onlyBusy, setOnlyBusy] = useState(true);
+  const [query, setQuery] = useState("");
+  useEscape(onClose);
+
+  const fromTs = new Date(`${from}T00:00`).getTime();
+  const toTs = new Date(`${to}T23:59`).getTime();
+  const q = query.trim().toLowerCase();
+  const rows = pledges
+    .filter((p) => (place === "all" || p.place === place) && (!onlyBusy || !p.returnedAt) &&
+      (isNaN(fromTs) || p.takenAt.getTime() >= fromTs) && (isNaN(toTs) || p.takenAt.getTime() <= toTs) &&
+      (!q || [String(p.cell), p.type, p.card, p.comment].some((v) => v.toLowerCase().includes(q))))
+    .sort((a, b) => a.cell - b.cell);
+  const fieldStyle: React.CSSProperties = { backgroundColor: c.inputBg, color: c.textPrimary, colorScheme: dark ? "dark" : "light" };
+  const label = (t: string) => <span className="text-[15px]" style={{ color: c.textSec }}>{t}</span>;
+
+  return (
+    <WinFrame dark={dark} title="Ячейки с залогом" width={1180} height={800} onClose={onClose}>
+      <div className="flex items-center shrink-0" style={{ gap: 14, marginTop: 22 }}>
+        {label("Место хранения")}
+        <div className="relative" style={{ width: 230 }}>
+          <select value={place} onChange={(e) => setPlace(e.target.value)} aria-label="Место хранения" className={`${winField(dark)} cursor-pointer w-full appearance-none pr-[38px]`} style={fieldStyle}>
+            <option value="all">Все места хранения</option>
+            {PLEDGE_PLACES.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <span className="absolute pointer-events-none" style={{ right: 12, top: 15, color: c.textPrimary }}><AdChevron up={false} /></span>
+        </div>
+        {label("С")}
+        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Период с" className={`${winField(dark)} cursor-pointer`} style={{ ...fieldStyle, width: 170 }} />
+        {label("До")}
+        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Период до" className={`${winField(dark)} cursor-pointer`} style={{ ...fieldStyle, width: 170 }} />
+        <span className="flex-1" />
+        <RetCheckbox checked={onlyBusy} onChange={() => setOnlyBusy((v) => !v)} label="Только занятые ячейки" dark={dark} />
+      </div>
+      <div className="flex justify-end shrink-0" style={{ marginTop: 14 }}>
+        <div className="relative" style={{ width: 300 }}>
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Поиск" aria-label="Поиск"
+            className={`${winField(dark)} w-full pl-[42px]`} style={fieldStyle} />
+          <svg viewBox="0 0 24 24" className="absolute pointer-events-none" style={{ left: 14, top: 14, width: 20, height: 20 }} fill="none">
+            <circle cx="11" cy="11" r="6.5" stroke={c.textSec} strokeWidth="1.8" /><path d="M16 16L20 20" stroke={c.textSec} strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </div>
+      </div>
+      <div className="flex flex-col flex-1 min-h-0" style={{ marginTop: 14 }}>
+        <WinTable dark={dark} cols="0.7fr 1.3fr 1fr 1.6fr 1.3fr 1.3fr"
+          headers={["Ячейка №", "Тип залога", "UID карты", "Комментарий к залогу", "Время взятия залога", "Время возврата"]}
+          rows={rows.map((p) => ({ key: `${p.cell}-${p.takenAt.getTime()}`, cells: [p.cell, p.type, p.card, p.comment, fmtRowDate(p.takenAt), fmtRowDate(p.returnedAt)] }))}
+          empty="Нет ячеек по заданным условиям" />
+      </div>
+      <div className="flex justify-end shrink-0" style={{ marginTop: 20 }}>
+        <button onClick={onClose} className={winOutline(dark)} style={{ width: 200, color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+          Закрыть<span className="absolute top-[4px] right-[10px] text-[9px] opacity-50" style={{ color: c.textSec }}>Esc</span>
+        </button>
+      </div>
+    </WinFrame>
+  );
+}
+
+const SAMPLE_CLIENTS = [
+  { name: "Маркина Мария Сергеевна", phone: "89123456788", email: "ds@gmail.com", uid: "4AB6EC76", board: "1024" },
+  { name: "Данилов Андрей Викторович", phone: "89001112233", email: "danilov@mail.ru", uid: "73512AA4", board: "1031" },
+  { name: "Петрова Ольга Ивановна", phone: "89215550101", email: "petrova@ya.ru", uid: "03F300A4", board: "" },
+  { name: "Маркин Илья Петрович", phone: "89123456700", email: "markin@gmail.com", uid: "9F3B11E4", board: "1102" },
+];
+type SearchBy = "phone" | "email" | "name" | "uid";
+const SEARCH_BY: { id: SearchBy; label: string }[] = [
+  { id: "phone", label: "Телефон" }, { id: "email", label: "Почта" }, { id: "name", label: "ФИО" }, { id: "uid", label: "UID карты" },
+];
+
+function ClientSearchWindow({ dark, onClose, onOk }: { dark: boolean; onClose: () => void; onOk: () => void }) {
+  const c = th(dark);
+  const [query, setQuery] = useState("");
+  const [by, setBy] = useState<SearchBy>("uid");
+  const [results, setResults] = useState<typeof SAMPLE_CLIENTS | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
+  useEscape(onClose);
+
+  const runSearch = (q = query, mode = by) => {
+    const raw = q.trim().toLowerCase();
+    if (!raw) return;
+    const needle = mode === "phone" ? raw.replace(/\D/g, "") : raw.replace(/\s+/g, " ");
+    const found = SAMPLE_CLIENTS.filter((cl) => {
+      const v = mode === "phone" ? cl.phone : mode === "email" ? cl.email : mode === "name" ? cl.name : cl.uid;
+      return needle !== "" && v.toLowerCase().includes(needle);
+    });
+    setResults(found);
+    setPicked(found.length === 1 ? found[0].uid : null);
+  };
+  const readCard = () => {
+    const cl = SAMPLE_CLIENTS[Math.floor(Math.random() * SAMPLE_CLIENTS.length)];
+    setBy("uid"); setQuery(cl.uid); runSearch(cl.uid, "uid");
+  };
+  const fieldStyle: React.CSSProperties = { backgroundColor: c.inputBg, color: c.textPrimary };
+
+  return (
+    <WinFrame dark={dark} title="Поиск клиента" width={860} height={680} onClose={onClose}>
+      <div className="flex shrink-0" style={{ gap: 12, marginTop: 22 }}>
+        <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { if (picked && results) onOk(); else runSearch(); } }}
+          placeholder={by === "phone" ? "8 900 000 00 00" : by === "email" ? "name@mail.ru" : by === "name" ? "Фамилия Имя Отчество" : "UID карты"}
+          aria-label="Строка поиска" className={`${winField(dark)} flex-1`} style={fieldStyle} />
+        <button onClick={() => runSearch()} className={winGreen(!!query.trim())} style={{ width: 170, height: 48 }}>Поиск</button>
+      </div>
+      <div className="flex items-center shrink-0" style={{ gap: 12, marginTop: 14 }}>
+        <div role="radiogroup" aria-label="Искать по" className="flex-1 flex items-center rounded-[10px]" style={{ height: 52, padding: "0 16px", gap: 22, backgroundColor: c.inputBg }}>
+          {SEARCH_BY.map((s) => (
+            <button key={s.id} role="radio" aria-checked={by === s.id} onClick={() => setBy(s.id)}
+              className="group flex items-center gap-[8px] text-[15px] cursor-pointer select-none outline-none rounded-[6px] focus-visible:ring-2 focus-visible:ring-[#47d465]"
+              style={{ color: c.textPrimary }}>
+              <span className="flex items-center justify-center size-[20px] rounded-full transition-colors duration-150 group-hover:bg-[#47d465]/15 group-active:bg-[#47d465]/30"
+                style={{ boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+                {by === s.id && <span className="size-[10px] rounded-full bg-[#47d465]" />}
+              </span>
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <button onClick={readCard} className={winOutline(dark)} style={{ width: 170, height: 52, color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>Считайте карту</button>
+      </div>
+      <p className="text-[15px] font-semibold shrink-0" style={{ color: c.textPrimary, marginTop: 18, marginBottom: 10 }}>Выберите карту</p>
+      <div className="flex flex-col flex-1 min-h-0">
+        <WinTable dark={dark} cols="2fr 1fr 1fr" headers={["ФИО", "UID карты", "Бортовой номер"]}
+          rows={(results ?? []).map((cl) => ({ key: cl.uid, cells: [cl.name, cl.uid, cl.board] }))}
+          activeKey={picked} onRowClick={setPicked}
+          empty={results === null ? "Введите запрос и нажмите «Поиск» или считайте карту" : "Клиенты не найдены"} />
+      </div>
+      <div className="flex justify-end shrink-0" style={{ gap: 12, marginTop: 20 }}>
+        <button onClick={() => picked && onOk()} className={winGreen(!!picked)} style={{ width: 180 }}>
+          OK<span className="absolute top-[4px] right-[10px] text-[9px] opacity-70">Enter</span>
+        </button>
+        <button onClick={onClose} className={winOutline(dark)} style={{ width: 180, color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+          Отмена<span className="absolute top-[4px] right-[10px] text-[9px] opacity-50" style={{ color: c.textSec }}>Esc</span>
+        </button>
+      </div>
+    </WinFrame>
+  );
+}
+
+function CardHistoryWindow({ dark, card, onClose }: { dark: boolean; card: string; onClose: () => void }) {
+  const c = th(dark);
+  const start = new Date(); start.setDate(start.getDate() - 14); start.setHours(0, 0, 0, 0);
+  const end = new Date(); end.setDate(end.getDate() + 1); end.setHours(0, 0, 0, 0);
+  const [from, setFrom] = useState(toLocalInput(start));
+  const [to, setTo] = useState(toLocalInput(end));
+  const [picked, setPicked] = useState<string | null>(null);
+  useEscape(onClose);
+  const history = useRef((() => {
+    if (!cardHasData(card)) return [] as { id: string; client: string; sold: Date; returned: Date | null }[];
+    const at = (daysAgo: number, h: number, m: number) => { const d = new Date(); d.setDate(d.getDate() - daysAgo); d.setHours(h, m, 0, 0); return d; };
+    return [
+      { id: "1", client: "700771", sold: at(12, 11, 5), returned: at(12, 18, 40) },
+      { id: "2", client: "700771", sold: at(6, 10, 20), returned: null },
+      { id: "3", client: "700812", sold: at(1, 15, 2), returned: at(0, 9, 30) },
+    ];
+  })()).current;
+  const fromTs = new Date(from).getTime();
+  const toTs = new Date(to).getTime();
+  const rows = history.filter((h) => (isNaN(fromTs) || h.sold.getTime() >= fromTs) && (isNaN(toTs) || h.sold.getTime() < toTs));
+  const fieldStyle: React.CSSProperties = { backgroundColor: c.inputBg, color: c.textPrimary, colorScheme: dark ? "dark" : "light" };
+
+  return (
+    <WinFrame dark={dark} title="История по карте" subtitle={`Карта ${card}`} width={900} height={680} onClose={onClose}>
+      <div className="flex items-center shrink-0" style={{ gap: 14, marginTop: 22 }}>
+        <span className="text-[15px]" style={{ color: c.textSec }}>Дата продажи</span>
+        <span className="text-[15px]" style={{ color: c.textSec }}>С</span>
+        <input type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Дата продажи с" className={`${winField(dark)} cursor-pointer`} style={{ ...fieldStyle, width: 220 }} />
+        <span className="text-[15px]" style={{ color: c.textSec }}>До</span>
+        <input type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Дата продажи до" className={`${winField(dark)} cursor-pointer`} style={{ ...fieldStyle, width: 220 }} />
+      </div>
+      <div className="flex flex-col flex-1 min-h-0" style={{ marginTop: 18 }}>
+        <WinTable dark={dark} cols="1fr 1fr 1fr 1fr" headers={["Идентификатор карты", "Идентификатор клиента", "Дата продажи", "Дата возврата"]}
+          rows={rows.map((h) => ({ key: h.id, cells: [card, h.client, fmtRowDate(h.sold), fmtRowDate(h.returned)] }))}
+          activeKey={picked} onRowClick={setPicked} empty="Нет операций за выбранный период" />
+      </div>
+      <div className="flex justify-end shrink-0" style={{ gap: 12, marginTop: 20 }}>
+        <button onClick={() => picked && onClose()} className={winGreen(!!picked)} style={{ width: 180 }}>
+          OK<span className="absolute top-[4px] right-[10px] text-[9px] opacity-70">Enter</span>
+        </button>
+        <button onClick={onClose} className={winOutline(dark)} style={{ width: 180, color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+          Отмена<span className="absolute top-[4px] right-[10px] text-[9px] opacity-50" style={{ color: c.textSec }}>Esc</span>
+        </button>
+      </div>
+    </WinFrame>
+  );
+}
+
 type PendingAdd = { kind: "add"; product: Product; qty: number } | { kind: "qtyModal"; product: Product };
 
 function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onLogout: () => void; requireRegistration: boolean }) {
@@ -4145,7 +4475,12 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
   const [qtyProduct, setQtyProduct]           = useState<Product | null>(null);
   const [menuOpen, setMenuOpen]               = useState(false);
   const [showAdmin, setShowAdmin]             = useState(false);
-  const [scanFor, setScanFor]                 = useState<"debts" | "returnCard" | "returnCarrier" | null>(null);
+  const [scanFor, setScanFor]                 = useState<"debts" | "returnCard" | "returnCarrier" | "pledgeTake" | "pledgeReturn" | "cardHistory" | null>(null);
+  const [pledges, setPledges]                 = useState<Pledge[]>(seedPledges);
+  const [pledgeStep, setPledgeStep]           = useState<{ stage: "type"; card: string } | { stage: "comment"; card: string; type: PledgeType } | null>(null);
+  const [showPledgeCells, setShowPledgeCells] = useState(false);
+  const [showClientSearch, setShowClientSearch] = useState(false);
+  const [historyCard, setHistoryCard]         = useState<string | null>(null);
   const [returnWin, setReturnWin]             = useState<{ mode: "card"; card: string } | { mode: "check" } | null>(null);
   const [notice, setNotice]                   = useState<{ title: string; text: string; copyValue?: string } | null>(null);
   useEffect(() => { if (!adminMode) setShowAdmin(false); }, [adminMode]);
@@ -4206,6 +4541,8 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
   const handleAction = (a: MenuAction) => {
     setMenuOpen(false);
     if (a === "returnCheck") setReturnWin({ mode: "check" });
+    else if (a === "pledgeCells") setShowPledgeCells(true);
+    else if (a === "clientSearch") setShowClientSearch(true);
     else setScanFor(a);
   };
 
@@ -4223,7 +4560,25 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
       if (!cardHasData(card)) { setNotice({ title: "Ошибка", text: "Данная карта не найдена в списке доступных к возврату товаров", copyValue: card }); return; }
       if (cartItems.some((i) => i.kind === "return-carrier" && i.card === card)) { setNotice({ title: "Карта уже добавлена", text: "Эта карта уже есть в списке к возврату.", copyValue: card }); return; }
       setCartItems((prev) => [...prev, { id: nextCartId++, productId: 0, name: `Возврат носителя ${card}`, price: -100, kind: "return-carrier" as const, card }]);
+    } else if (purpose === "pledgeTake") {
+      const existing = pledges.find((p) => !p.returnedAt && p.card === card);
+      if (existing) { setNotice({ title: "Залог уже взят", text: `По этой карте залог уже лежит в ячейке номер: ${existing.cell} (${existing.type}).`, copyValue: card }); return; }
+      setPledgeStep({ stage: "type", card });
+    } else if (purpose === "pledgeReturn") {
+      const existing = pledges.find((p) => !p.returnedAt && p.card === card);
+      if (!existing) { setNotice({ title: "Залог не найден", text: "По этой карте нет залога в ячейках.", copyValue: card }); return; }
+      setPledges((prev) => prev.map((p) => (p === existing ? { ...p, returnedAt: new Date() } : p)));
+      setNotice({ title: `Верните залог из ячейки номер: ${existing.cell}`, text: `Тип залога: ${existing.type}${existing.comment ? `. Комментарий: ${existing.comment}` : ""}` });
+    } else if (purpose === "cardHistory") {
+      setHistoryCard(card);
     }
+  };
+
+  const finishPledge = (card: string, type: PledgeType, comment: string) => {
+    const cell = firstFreeCell(pledges);
+    setPledges((prev) => [...prev, { cell, type, card, comment, place: PLEDGE_PLACES[0], takenAt: new Date(), returnedAt: null }]);
+    setPledgeStep(null);
+    setNotice({ title: `Положите залог в ячейку номер: ${cell}`, text: `Тип залога: ${type}${comment ? `. Комментарий: ${comment}` : ""}` });
   };
 
   return (
@@ -4319,7 +4674,7 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
       )}
       {scanFor && (
         <CardScanModal
-          title={scanFor === "debts" ? "Считайте карту для гашения долгов" : scanFor === "returnCarrier" ? "Считайте карту для возврата носителя" : "Считайте карту для возврата"}
+          title={({ debts: "Считайте карту для гашения долгов", returnCarrier: "Считайте карту для возврата носителя", returnCard: "Считайте карту для возврата", pledgeTake: "Считайте карту для залога", pledgeReturn: "Считайте карту для возврата залога", cardHistory: "Считайте карту" } as const)[scanFor]}
           onClose={() => setScanFor(null)}
           onSuccess={handleScanned}
         />
@@ -4331,6 +4686,22 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
           onDone={({ count, sum }) => { setReturnWin(null); setNotice({ title: "Возврат выполнен", text: `Позиций: ${count}. Сумма к возврату: ${sum} ₽.` }); }}
         />
       )}
+      {pledgeStep?.stage === "type" && (
+        <PledgeTypeModal dark={effectiveDark} card={pledgeStep.card}
+          onPick={(type) => setPledgeStep({ stage: "comment", card: pledgeStep.card, type })}
+          onCancel={() => setPledgeStep(null)} />
+      )}
+      {pledgeStep?.stage === "comment" && (
+        <PledgeCommentModal dark={effectiveDark} type={pledgeStep.type}
+          onOk={(comment) => finishPledge(pledgeStep.card, pledgeStep.type, comment)}
+          onCancel={() => setPledgeStep(null)} />
+      )}
+      {showPledgeCells && <PledgeCellsWindow dark={effectiveDark} pledges={pledges} onClose={() => setShowPledgeCells(false)} />}
+      {showClientSearch && (
+        <ClientSearchWindow dark={effectiveDark} onClose={() => setShowClientSearch(false)}
+          onOk={() => { setShowClientSearch(false); setShowClientInfo(true); }} />
+      )}
+      {historyCard && <CardHistoryWindow dark={effectiveDark} card={historyCard} onClose={() => setHistoryCard(null)} />}
       {notice && <NoticeModal dark={effectiveDark} {...notice} onClose={() => setNotice(null)} />}
 
       {/* Mandatory-registration gate screens — hidden (not unmounted, so any
