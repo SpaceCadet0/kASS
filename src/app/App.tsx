@@ -634,30 +634,40 @@ function LeftSidebar({ dark, adminMode, onLogout, onUserPlus, onMenu, onHome, ho
   );
 }
 
-// ─── Sidebar "Меню" flyout ─────────────────────────────────────────────────────
+// ─── Sidebar "Меню" drawer ─────────────────────────────────────────────────────
+// Two panels next to the sidebar: the main menu (big action / section cards) and,
+// after clicking a card marked with the angle icon, a second panel with that
+// section's actions and their hotkeys.
 
-interface MenuLeaf { label: string; badge?: string; }
-interface MenuSection { key: string; label: string; badge?: string; leaves?: MenuLeaf[]; columns?: MenuLeaf[][]; isMonitor?: boolean; }
+type MenuIconKind = "ticket" | "lock" | "user" | "card" | "monitor";
+interface MenuLeaf { label: string; badge?: string; opensClientInfo?: boolean; }
+interface MenuSection {
+  key: string; label: string; badge?: string; icon?: MenuIconKind;
+  leaves?: MenuLeaf[]; columns?: MenuLeaf[][]; isMonitor?: boolean;
+}
 
 const MENU_SECTIONS: MenuSection[] = [
-  { key: "return", label: "Возврат товара", leaves: [
+  { key: "debts",    label: "Гашение долгов", badge: "F8" },
+  { key: "qr",       label: "Печать последних QR кодов" },
+  { key: "precheck", label: "Печать пречека" },
+  { key: "return", label: "Возврат товара", icon: "ticket", leaves: [
       { label: "По карте", badge: "Backspace" },
       { label: "По чеку", badge: "Alt+Backspace" },
       { label: "Возврат носителя", badge: "Ctrl+Backspace" },
   ]},
-  { key: "pledge", label: "Залог", leaves: [
+  { key: "pledge", label: "Залог", icon: "lock", leaves: [
       { label: "По карте" },
       { label: "Вернуть залог" },
       { label: "Ячейки с залогом" },
   ]},
-  { key: "client", label: "Информация о клиенте", badge: "F1", leaves: [
-      { label: "По карте" },
+  { key: "client", label: "Информация о клиенте", icon: "user", leaves: [
+      { label: "По карте", badge: "F1", opensClientInfo: true },
       { label: "По бортовому" },
-      { label: "По телефону" },
+      { label: "По телефону", badge: "F2" },
       { label: "Поиск клиента..." },
       { label: "История по карте" },
   ]},
-  { key: "cards", label: "Карты", columns: [
+  { key: "cards", label: "Карты", icon: "card", columns: [
       [
         { label: "С регистрацией", badge: "Insert" },
         { label: "По карте", badge: "Ctrl+Insert" },
@@ -669,22 +679,22 @@ const MENU_SECTIONS: MenuSection[] = [
         { label: "Блокировать" },
         { label: "Разблокировать" },
         { label: "Расширить билет", badge: "PageUp" },
-        { label: "Слияние счетов клиента" },
+        { label: "Слияние счетов клиентов" },
       ],
   ]},
-  { key: "preorder", label: "Предзаказ", leaves: [
+  { key: "preorder", label: "Предварительные заказы", icon: "card", leaves: [
       { label: "Получить предзаказ", badge: "F12" },
       { label: "Внести предоплату" },
       { label: "Вернуть предоплату" },
   ]},
-  { key: "monitors", label: "Мониторы", isMonitor: true },
+  { key: "monitors", label: "Мониторы", icon: "monitor", isMonitor: true },
 ];
 
 function MonitorsPanel({ dark }: { dark: boolean }) {
   const c = th(dark);
   const zones = [{ name: "Зона 1", cur: 10, max: 15 }, { name: "Зона 2", cur: 10, max: 15 }];
   return (
-    <div style={{ width: 280 }}>
+    <div style={{ width: "100%" }}>
       <div className="flex items-center gap-[8px] mb-[14px]">
         <span className="size-[8px] rounded-full shrink-0" style={{ backgroundColor: "#47d465" }} />
         <span className="text-[15px] font-semibold flex-1" style={{ color: c.textPrimary }}>Монитор посещаемости</span>
@@ -706,75 +716,166 @@ function MonitorsPanel({ dark }: { dark: boolean }) {
   );
 }
 
+// Large faded outline icon tucked into a card's bottom-right corner (cropped by the card).
+function MenuWatermark({ kind, dark }: { kind: MenuIconKind; dark: boolean }) {
+  const stroke = dark ? "#5a5a58" : "#c6c6c6";
+  const accent = dark ? "#4b6f8c" : "#a9d6f5";
+  const p = { fill: "none", stroke, strokeWidth: 5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const a = { fill: "none", stroke: accent, strokeWidth: 5, strokeLinecap: "round" as const };
+  return (
+    <svg viewBox="0 0 100 100" aria-hidden className="absolute pointer-events-none"
+      style={{ width: 118, height: 118, right: -16, bottom: -24, transform: "rotate(-14deg)" }}>
+      {kind === "ticket" && (<>
+        <path {...p} d="M18 28H82A6 6 0 0 1 88 34V44A6 6 0 0 0 88 56V66A6 6 0 0 1 82 72H18A6 6 0 0 1 12 66V56A6 6 0 0 0 12 44V34A6 6 0 0 1 18 28Z" />
+        <path {...a} d="M50 36V42M50 47V53M50 58V64" />
+      </>)}
+      {kind === "lock" && (<>
+        <rect {...p} x="20" y="44" width="60" height="42" rx="7" />
+        <path {...p} d="M34 44V34A16 16 0 0 1 66 34V44" />
+        <path {...a} d="M50 58V70" />
+      </>)}
+      {kind === "user" && (<>
+        <circle {...p} cx="50" cy="34" r="15" />
+        <path {...p} d="M18 90A32 32 0 0 1 82 90" />
+        <path {...a} d="M50 66V78" />
+      </>)}
+      {kind === "card" && (<>
+        <rect {...p} x="10" y="26" width="80" height="50" rx="8" />
+        <path {...p} d="M10 42H90" />
+        <path {...a} d="M22 62H38" />
+      </>)}
+      {kind === "monitor" && (<>
+        <rect {...p} x="12" y="22" width="76" height="48" rx="7" />
+        <path {...p} d="M36 86H64M50 70V86" />
+        <path {...a} d="M26 56L38 46L48 54L62 38" />
+      </>)}
+    </svg>
+  );
+}
+
+const MENU_CARD_W = 338;
+const MENU_CARD_H = 132;
+const MENU_GAP = 10;
+const MENU_HEADER_H = 76;
+
 function SidebarMenu({ dark, onClose, onClientInfo }: { dark: boolean; onClose: () => void; onClientInfo: () => void }) {
   const c = th(dark);
-  const [hover, setHover] = useState<string | null>(null);
-  const panelBorder = `1px solid ${dark ? c.divider : "#f0f0f0"}`;
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const activeSection = openKey ? MENU_SECTIONS.find((s) => s.key === openKey) ?? null : null;
 
-  const renderLeaf = (leaf: MenuLeaf, key: string) => (
-    <div key={key} onClick={onClose}
-      className="relative flex items-center px-[18px] h-[52px] rounded-[10px] cursor-pointer select-none transition-colors duration-100 hover:opacity-80 active:opacity-60"
-      style={{ backgroundColor: c.searchBg, color: c.textPrimary }}>
-      <span className="text-[14px] font-normal">{leaf.label}</span>
-      {leaf.badge && <span className="absolute top-[5px] right-[10px] text-[9px] opacity-50 whitespace-nowrap">{leaf.badge}</span>}
-    </div>
+  // Card size is fixed; how many fit per column follows from the 1024px canvas height.
+  const perColumn = Math.max(1, Math.floor((1024 - MENU_HEADER_H - 20 + MENU_GAP) / (MENU_CARD_H + MENU_GAP)));
+  const menuColumns: MenuSection[][] = [];
+  for (let i = 0; i < MENU_SECTIONS.length; i += perColumn) menuColumns.push(MENU_SECTIONS.slice(i, i + perColumn));
+  const mainPanelW = 32 + menuColumns.length * MENU_CARD_W + (menuColumns.length - 1) * MENU_GAP;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  // Card states: default → hover → pressed (dark outline); "open" = its submenu is showing.
+  const cardCls = dark
+    ? "bg-[#303030] hover:bg-[#3a3a3a] active:bg-[#444444] active:shadow-[inset_0_0_0_1.5px_#ffffff]"
+    : "bg-[#f5f5f5] hover:bg-[#ebebeb] active:bg-[#e2e2e2] active:shadow-[inset_0_0_0_1.5px_#2b2b2b]";
+  const cardOpenCls = dark
+    ? "bg-[#1f4a2a] hover:bg-[#25573a] active:bg-[#2c6444] active:shadow-[inset_0_0_0_1.5px_#ffffff]"
+    : "bg-[#dffbe6] hover:bg-[#d3f7dc] active:bg-[#c6f2d1] active:shadow-[inset_0_0_0_1.5px_#2b2b2b]";
+  const baseBtn = "group relative text-left select-none cursor-pointer outline-none rounded-[12px] transition-[background-color,box-shadow] duration-150 focus-visible:shadow-[inset_0_0_0_2px_#47d465]";
+  const pillCls = dark
+    ? "bg-[#454545] group-hover:bg-[#505050] text-[#bdbdbd]"
+    : "bg-[#e6e6e6] group-hover:bg-[#dcdcdc] text-[#8a8a8a]";
+  const panelStyle: React.CSSProperties = { backgroundColor: c.sidebarBg, boxShadow: "0 0 28px rgba(0,0,0,0.14)" };
+
+  const renderClose = (onClick: () => void, label: string) => (
+    <button onClick={onClick} aria-label={label}
+      className="flex items-center justify-center size-[36px] rounded-[8px] cursor-pointer select-none outline-none transition-all duration-150 hover:bg-black/10 active:bg-black/15 active:scale-90 focus-visible:shadow-[inset_0_0_0_2px_#47d465]">
+      <svg viewBox="0 0 24 24" className="size-[20px]" fill="none">
+        <path d="M6 6L18 18M18 6L6 18" stroke={c.textPrimary} strokeWidth="2.2" strokeLinecap="round" />
+      </svg>
+    </button>
   );
 
-  const activeSection = hover ? MENU_SECTIONS.find((s) => s.key === hover) : null;
+  const renderLeaf = (leaf: MenuLeaf, key: string) => (
+    <button key={key} onClick={() => (leaf.opensClientInfo ? onClientInfo() : onClose())}
+      className={`${baseBtn} ${cardCls} flex items-center justify-between`}
+      style={{ height: 72, padding: "0 18px", color: c.textPrimary }}>
+      <span className="text-[18px] font-medium leading-[1.2]">{leaf.label}</span>
+      {leaf.badge && (
+        <span className={`shrink-0 ml-[12px] rounded-[6px] px-[8px] py-[3px] text-[13px] whitespace-nowrap transition-colors duration-150 ${pillCls}`}>
+          {leaf.badge}
+        </span>
+      )}
+    </button>
+  );
 
   return (
     <>
-      <div className="fixed inset-0" style={{ zIndex: 39 }} onClick={onClose} />
-      <div className="absolute flex items-start" style={{ left: 82, top: 142, zIndex: 40 }} onMouseLeave={() => setHover(null)}>
+      <div className="fixed inset-0" style={{ zIndex: 39, backgroundColor: "rgba(50,50,50,0.38)" }} onClick={onClose} />
+      <div className="absolute flex items-start" style={{ left: 73, top: 0, height: 1024, zIndex: 40 }}>
         {/* Main panel */}
-        <div className="rounded-[10px] overflow-hidden transition-colors duration-300"
-          style={{ width: 300, backgroundColor: c.sidebarBg, border: panelBorder, boxShadow: "0 8px 24px rgba(0,0,0,0.15)" }}>
-          <p className="px-[18px] pt-[18px] pb-[10px] font-bold text-[19px]" style={{ color: c.textPrimary }}>Меню</p>
-          <div className="flex flex-col gap-[8px] px-[14px] pb-[14px]">
-            {MENU_SECTIONS.map((sec) => {
-              const active = hover === sec.key;
-              return (
-                <div key={sec.key} onMouseEnter={() => setHover(sec.key)}
-                  onClick={() => (sec.key === "client" ? onClientInfo() : setHover(sec.key))}
-                  className="flex items-center justify-between px-[18px] h-[52px] rounded-[10px] cursor-pointer select-none transition-colors duration-100"
-                  style={{ backgroundColor: active ? "rgba(71,212,101,0.19)" : c.searchBg, color: c.textPrimary }}>
-                  <span className="text-[15px] font-normal">{sec.label}</span>
-                  <span className="flex items-center" style={{ transform: "rotate(90deg)" }}>
-                    <IconChevron down={false} color={dark ? "#fafaf9" : "#252422"} />
-                  </span>
-                </div>
-              );
-            })}
+        <div className="flex flex-col transition-colors duration-300" style={{ width: mainPanelW, height: 1024, ...panelStyle }}>
+          <div className="flex items-center justify-between shrink-0" style={{ padding: "26px 16px 14px 20px", height: MENU_HEADER_H }}>
+            <p className="font-bold text-[24px]" style={{ color: c.textPrimary }}>Меню</p>
+            {renderClose(onClose, "Закрыть меню")}
+          </div>
+          {/* No scrolling: cards keep their size and the ones that don't fit
+              the height flow into the next column. */}
+          <div className="flex min-h-0" style={{ gap: MENU_GAP, padding: "0 16px 20px" }}>
+            {menuColumns.map((col, ci) => (
+              <div key={ci} className="flex flex-col shrink-0" style={{ width: MENU_CARD_W, gap: MENU_GAP }}>
+                {col.map((sec) => {
+                  const navigable = !!(sec.leaves || sec.columns || sec.isMonitor);
+                  const isOpen = openKey === sec.key;
+                  return (
+                    <button key={sec.key} aria-expanded={navigable ? isOpen : undefined}
+                      onClick={() => (navigable ? setOpenKey(isOpen ? null : sec.key) : onClose())}
+                      className={`${baseBtn} ${isOpen ? cardOpenCls : cardCls} overflow-hidden shrink-0`}
+                      style={{ height: MENU_CARD_H, padding: "20px 18px", color: c.textPrimary }}>
+                      {sec.icon && <MenuWatermark kind={sec.icon} dark={dark} />}
+                      <span className="relative block text-[21px] font-medium leading-[1.2]" style={{ paddingRight: 30 }}>{sec.label}</span>
+                      {sec.badge && (
+                        <span className="absolute text-[13px] opacity-55" style={{ right: 16, top: 20 }}>{sec.badge}</span>
+                      )}
+                      {navigable && (
+                        <span className="absolute flex items-center" style={{ right: 16, top: 24, transform: "rotate(90deg)" }}>
+                          <IconChevron down={false} color={dark ? "#fafaf9" : "#252422"} />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Submenu flyout */}
+        {/* Submenu panel */}
         {activeSection && (
-          <div className="relative ml-[8px] rounded-[10px] p-[14px] transition-colors duration-300"
-            style={{
-              backgroundColor: c.sidebarBg, border: panelBorder, boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-              width: activeSection.columns ? 560 : 280,
-            }}>
-            {activeSection.badge && (
-              <span className="absolute top-[10px] right-[14px] text-[10px] opacity-50" style={{ color: c.textSec }}>
-                {activeSection.badge}
-              </span>
-            )}
-            {activeSection.isMonitor ? (
-              <MonitorsPanel dark={dark} />
-            ) : activeSection.columns ? (
-              <div className="flex gap-[10px]">
-                {activeSection.columns.map((col, ci) => (
-                  <div key={ci} className="flex flex-col gap-[8px]" style={{ width: 260 }}>
-                    {col.map((leaf, li) => renderLeaf(leaf, `${ci}-${li}`))}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-[8px]">
-                {activeSection.leaves!.map((leaf, li) => renderLeaf(leaf, String(li)))}
-              </div>
-            )}
+          <div className="flex flex-col rounded-r-[12px] transition-colors duration-300"
+            style={{ width: activeSection.columns ? 640 : 366, maxHeight: 1024, ...panelStyle }}>
+            <div className="flex items-center justify-between shrink-0" style={{ padding: "26px 16px 14px 20px" }}>
+              <p className="font-bold text-[22px]" style={{ color: c.textPrimary }}>{activeSection.label}</p>
+              {renderClose(() => setOpenKey(null), "Закрыть подменю")}
+            </div>
+            <div className="overflow-y-auto" style={{ padding: "0 16px 20px" }}>
+              {activeSection.isMonitor ? (
+                <MonitorsPanel dark={dark} />
+              ) : activeSection.columns ? (
+                <div className="flex gap-[10px]">
+                  {activeSection.columns.map((col, ci) => (
+                    <div key={ci} className="flex-1 flex flex-col gap-[10px]">
+                      {col.map((leaf, li) => renderLeaf(leaf, `${ci}-${li}`))}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-[10px]">
+                  {activeSection.leaves!.map((leaf, li) => renderLeaf(leaf, String(li)))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
