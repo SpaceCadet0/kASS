@@ -9,6 +9,9 @@ import svgReg from "@/imports/РегистрацияГостя-1/svg-2ne1v20uh3"
 import svgNewData from "@/imports/НовыеДанные/svg-49bwdoakjj";
 import svgCard from "@/imports/СчитатьКарту/svg-lwbgswx1qv";
 import svgClientInfo from "@/imports/СРегистрацией/svg-3jfmc2efvu";
+import reportSalesTotal from "@/assets/reports/sales-total.png";
+import reportPaymentsSummary from "@/assets/reports/payments-summary.png";
+import reportRentalTotal from "@/assets/reports/rental-total.png";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -680,7 +683,7 @@ const MENU_SECTIONS: MenuSection[] = [
       [
         { label: "Блокировать", action: "cardBlock" },
         { label: "Разблокировать", action: "cardUnblock" },
-        { label: "Расширить билет", badge: "PageUp" },
+        { label: "Расширить билет", badge: "PageUp", action: "extendTicket" },
         { label: "Слияние счетов клиентов", action: "mergeAccounts" },
       ],
   ]},
@@ -2624,13 +2627,6 @@ function ClientIdentifyModal({ dark, onClose, onPhone, onCard }: {
               <svg fill="none" viewBox="0 0 14 14" style={{ width: 13, height: 13 }}><path d="M1 1L13 13M13 1L1 13" stroke="#a0a0a0" strokeWidth="1.6" strokeLinecap="round" /></svg>
             </button>
           )}
-          <button onClick={readCard}
-            className={`relative shrink-0 flex items-center gap-[8px] h-[44px] px-[14px] rounded-[8px] text-[14px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-[#47d465] ${dark ? "hover:bg-white/10 active:bg-white/15" : "hover:bg-black/5 active:bg-black/10"}`}
-            style={{ color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
-            <svg fill="none" viewBox="0 0 24 24" style={{ width: 20, height: 20 }}><rect x="3" y="6" width="18" height="12" rx="2" stroke="#47d465" strokeWidth="1.7" /><path d="M3 10H21" stroke="#47d465" strokeWidth="1.7" /></svg>
-            Считать карту
-            <span className="absolute text-[8px] opacity-50" style={{ top: 2, right: 6 }}>F4</span>
-          </button>
         </div>
         <p className="text-[13px] leading-[1.3]" style={{ marginTop: 10, minHeight: 34, color: statusColor }}>{status}</p>
 
@@ -3789,13 +3785,12 @@ function AdminDateTimeField({ value, onChange }: { value: AdDT; onChange: (v: Ad
   );
 }
 
-function AdminReportsTab() {
+function AdminReportsTab({ onReport, canOpenShift }: { onReport: (label: string) => void; canOpenShift: boolean }) {
   const initial = (): AdDT => ({ date: new Date(), hour: 13, minute: 0 });
   const [saleRange, setSaleRange] = useState<AdDT>(initial);
   const [reportRange, setReportRange] = useState<AdDT>(initial);
-  const [last, setLast] = useState<string | null>(null);
   const rBtn = (label: string, dim = false) => (
-    <button key={label} onClick={() => !dim && setLast(label)}
+    <button key={label} onClick={() => !dim && onReport(label)}
       className={`${AD_OUTLINE} w-full h-[54px] px-[12px] text-[15px] font-medium ${dim ? "text-[#9b9b99] pointer-events-none" : ""}`}>{label}</button>
   );
   const col = (title: string, body: React.ReactNode) => (
@@ -3807,17 +3802,16 @@ function AdminReportsTab() {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-stretch shrink-0" style={{ gap: 16 }}>
-        {col("Старший кассир", <>{["Z отчет", "X отчет"].map((l) => rBtn(l))}{rBtn("Открыть смену", true)}{["Сверка итогов", "Журнал эквайринга"].map((l) => rBtn(l))}</>)}
+        {col("Старший кассир", <>{["Z отчет", "X отчет"].map((l) => rBtn(l))}{rBtn("Открыть смену", !canOpenShift)}{["Сверка итогов", "Журнал эквайринга"].map((l) => rBtn(l))}</>)}
         {col("Наличные", <>{["Внесение наличных", "Инкассация"].map((l) => rBtn(l))}</>)}
         {col("Чек реализации услуг", <><AdminDateTimeField value={saleRange} onChange={setSaleRange} />{rBtn("Печать")}</>)}
         {col("Отчеты", <><AdminDateTimeField value={reportRange} onChange={setReportRange} />{["Итоговый отчет по продажам", "Сводный отчет по оплатам", "Детальный по прокату (выдача)", "Итоговый по прокату (выдача)"].map((l) => rBtn(l))}</>)}
       </div>
-      {last && <p className="text-[14px] font-medium text-[#47d465]" style={{ marginTop: 18 }}>Сформировано: {last}</p>}
     </div>
   );
 }
 
-function AdminScreen({ onClose, onClientInfo }: { onClose: () => void; onClientInfo: () => void }) {
+function AdminScreen({ onClose, onClientInfo, onReport, canOpenShift }: { onClose: () => void; onClientInfo: () => void; onReport: (label: string) => void; canOpenShift: boolean }) {
   const [tab, setTab] = useState("goods");
   const tabBody: Record<string, React.ReactNode> = {
     goods: <AdminGoodsTab onClientInfo={onClientInfo} />,
@@ -3827,7 +3821,7 @@ function AdminScreen({ onClose, onClientInfo }: { onClose: () => void; onClientI
     pledge: <AdminPledgeTab />,
     returns: <AdminLoadTab kind="goods" />,
     staff: <AdminStaffTab />,
-    reports: <AdminReportsTab />,
+    reports: <AdminReportsTab onReport={onReport} canOpenShift={canOpenShift} />,
   };
   return (
     <div className="absolute inset-0 flex flex-col" style={{ zIndex: 38, backgroundColor: "#1f1e1d", padding: "18px 59px 24px 99px" }}>
@@ -3859,7 +3853,7 @@ function AdminScreen({ onClose, onClientInfo }: { onClose: () => void; onClientI
 // Prototype data: a card number ending in "0" has no debts and nothing to return,
 // any other number gets generated sample data (so both outcomes can be demoed).
 
-type MenuAction = "debts" | "returnCard" | "returnCheck" | "returnCarrier" | "pledgeTake" | "pledgeReturn" | "pledgeCells" | "clientSearch" | "cardHistory" | "preorders" | "cardExtra" | "cardExtraSearch" | "service" | "cardBlock" | "cardUnblock" | "mergeAccounts";
+type MenuAction = "debts" | "returnCard" | "returnCheck" | "returnCarrier" | "pledgeTake" | "pledgeReturn" | "pledgeCells" | "clientSearch" | "cardHistory" | "preorders" | "cardExtra" | "cardExtraSearch" | "service" | "cardBlock" | "cardUnblock" | "mergeAccounts" | "extendTicket";
 
 const cardHasData = (card: string) => !card.trim().endsWith("0");
 const genCardNumber = () => Math.random().toString(16).slice(2, 9).toUpperCase().padEnd(7, "A") + String(1 + Math.floor(Math.random() * 9));
@@ -4273,13 +4267,13 @@ const TILL_SERVICES: { name: string; price: number }[] = [
 const TILL_ACTIONS: { label: string; disabled?: string; title: string; text: string }[] = [
   { label: "Сверка итогов", title: "Сверка итогов выполнена", text: "Итоги по банковскому терминалу сверены, расхождений нет." },
   { label: "Печать слипов", disabled: "Нет слипов для печати", title: "", text: "" },
-  { label: "Открыть смену", disabled: "Смена уже открыта", title: "", text: "" },
+  { label: "Открыть смену", disabled: "Смена уже открыта", title: "Смена открыта", text: "Новая смена открыта, можно продавать." },
   { label: "Сменить режим", title: "Режим кассы изменён", text: "Касса переключена в другой режим работы." },
   { label: "Задать бобину", title: "Бобина задана", text: "Новая бобина чековой ленты зарегистрирована." },
   { label: "Вычесть", title: "Операция выполнена", text: "Операция «Вычесть» проведена по кассе." },
 ];
 
-function TillActionsFlyout({ dark, adminMode, onClose, onAction }: { dark: boolean; adminMode: boolean; onClose: () => void; onAction: (a: (typeof TILL_ACTIONS)[number]) => void }) {
+function TillActionsFlyout({ dark, adminMode, canOpenShift, onClose, onAction }: { dark: boolean; adminMode: boolean; canOpenShift: boolean; onClose: () => void; onAction: (a: (typeof TILL_ACTIONS)[number]) => void }) {
   const c = th(dark);
   useEscape(onClose);
   const gearTop = adminMode ? 862 : 838;
@@ -4301,7 +4295,7 @@ function TillActionsFlyout({ dark, adminMode, onClose, onAction }: { dark: boole
           </button>
         </div>
         <div className="flex flex-col gap-[10px] overflow-y-auto" style={{ padding: "0 16px 20px" }}>
-          {TILL_ACTIONS.map((a) => (
+          {TILL_ACTIONS.map((t) => (t.label === "Открыть смену" && canOpenShift ? { ...t, disabled: undefined } : t)).map((a) => (
             <button key={a.label} role="menuitem" disabled={!!a.disabled} onClick={() => onAction(a)}
               className={`group relative text-left select-none outline-none rounded-[12px] transition-[background-color,box-shadow] duration-150 focus-visible:shadow-[inset_0_0_0_2px_#47d465] flex items-center justify-between ${a.disabled ? `${dark ? "bg-[#303030]" : "bg-[#f5f5f5]"} opacity-45 cursor-not-allowed` : `${cardCls} cursor-pointer`}`}
               style={{ height: 72, padding: "0 18px", color: c.textPrimary }}>
@@ -5022,6 +5016,224 @@ function MergeAccountsWindow({ dark, onClose, onMerged }: { dark: boolean; onClo
   );
 }
 
+// ─── Fake loading, ticket extension, acquiring journal, cash, report images ──
+
+// Full-screen "Загрузка" with the Lime logo spinning clockwise (used for 3 s fake operations).
+function LoadingOverlay({ dark }: { dark: boolean }) {
+  const c = th(dark);
+  return (
+    <div role="status" aria-live="polite" className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 90, backgroundColor: dark ? "rgba(20,20,20,0.55)" : "rgba(64,62,62,0.35)" }}>
+      <style>{"@keyframes limeSpin{to{transform:rotate(360deg)}}@keyframes limeDots{0%,20%{opacity:.2}50%{opacity:1}100%{opacity:.2}}"}</style>
+      <div className="flex flex-col items-center rounded-[16px]" style={{ padding: "36px 56px 30px", gap: 22, backgroundColor: c.sidebarBg, boxShadow: "0 16px 50px rgba(0,0,0,0.22)" }}>
+        <div style={{ width: 84, height: 84, display: "flex", alignItems: "center", justifyContent: "center", animation: "limeSpin 1.1s linear infinite" }}>
+          <div style={{ transform: "scale(2.6)" }}><IconLogo /></div>
+        </div>
+        <p className="text-[20px] font-bold" style={{ color: c.textPrimary }}>
+          Загрузка
+          {[0, 1, 2].map((i) => <span key={i} style={{ animation: `limeDots 1.2s ${i * 0.2}s infinite` }}>.</span>)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Расширить билет ──
+interface ExtendRow { id: number; name: string; from: string; to: string; comment: string; ext: string; qty: number; extra: number; locked?: boolean; }
+
+function buildExtendRows(): ExtendRow[] {
+  const now = new Date();
+  const later = new Date(now); later.setDate(later.getDate() + 1);
+  const past = new Date(now); past.setMonth(past.getMonth() - 2); past.setHours(11, 16, 0, 0);
+  return [
+    { id: 1, name: "3 круга", from: fmtRowDate(past), to: "", comment: "Запрещено настройками тарифа", ext: "Билет мероприятия", qty: 1, extra: 0, locked: true },
+    { id: 2, name: "Входной билет", from: fmtRowDate(now), to: fmtRowDate(later), comment: "", ext: "Спа", qty: 1, extra: 350 },
+    { id: 3, name: "Безлимит", from: fmtRowDate(now), to: fmtRowDate(later), comment: "", ext: "Безлимит VIP", qty: 2, extra: 200 },
+  ];
+}
+
+function ExtendTicketWindow({ dark, card, onClose, onConfirm }: { dark: boolean; card: string; onClose: () => void; onConfirm: (rows: ExtendRow[]) => void }) {
+  const c = th(dark);
+  const rows = useRef(buildExtendRows()).current;
+  const [checked, setChecked] = useState<Set<number>>(new Set());
+  useEscape(onClose);
+  const allowed = rows.filter((r) => !r.locked);
+  const allChecked = allowed.length > 0 && allowed.every((r) => checked.has(r.id));
+  const selected = allowed.filter((r) => checked.has(r.id));
+  const total = selected.reduce((s, r) => s + r.extra * r.qty, 0);
+  const toggle = (id: number) => setChecked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const COLS = "44px 1.2fr 1.3fr 1.3fr 1.6fr 1.3fr 0.6fr 0.8fr";
+
+  return (
+    <WinFrame dark={dark} title="Расширение билета" subtitle={`Карта ${card}`} width={1180} height={620} onClose={onClose}>
+      <div className="flex items-center justify-between shrink-0" style={{ marginTop: 18 }}>
+        <RetCheckbox checked={allChecked} onChange={() => setChecked(allChecked ? new Set() : new Set(allowed.map((r) => r.id)))} label="Выделить все билеты" dark={dark} />
+      </div>
+      <div className="flex-1 min-h-0 flex flex-col rounded-[10px] overflow-hidden" style={{ marginTop: 14, boxShadow: `inset 0 0 0 1px ${c.divider}` }}>
+        <div className="grid items-center shrink-0 text-[13px] font-semibold" style={{ gridTemplateColumns: COLS, height: 42, backgroundColor: c.inputBg, color: c.textSec }}>
+          <span />{["Название", "С", "До", "Комментарий", "Расширение", "Кол-во", "Доплата"].map((h) => <span key={h} className="truncate pr-[8px]">{h}</span>)}
+        </div>
+        <div className={`flex-1 min-h-0 ${RET_SCROLL}`}>
+          {rows.map((r) => (
+            <div key={r.id} onClick={() => !r.locked && toggle(r.id)}
+              className={`grid items-center text-[14px] select-none transition-colors duration-150 ${r.locked ? "cursor-not-allowed" : `cursor-pointer ${dark ? "hover:bg-white/5 active:bg-white/10" : "hover:bg-black/[0.035] active:bg-black/[0.07]"}`}`}
+              style={{ gridTemplateColumns: COLS, height: 52, color: c.textPrimary, borderTop: `1px solid ${c.divider}`, opacity: r.locked ? 0.5 : 1,
+                backgroundColor: checked.has(r.id) ? (dark ? "#1f4a2a" : "#dffbe6") : undefined, fontFeatureSettings: '"lnum","pnum"' }}>
+              <span className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                {r.locked
+                  ? <span className="size-[22px] rounded-[5px]" style={{ boxShadow: `inset 0 0 0 1.5px ${c.divider}` }} title={r.comment} />
+                  : <RetCheckbox checked={checked.has(r.id)} onChange={() => toggle(r.id)} dark={dark} />}
+              </span>
+              <span className="truncate pr-[8px] font-semibold">{r.name}</span>
+              <span className="truncate pr-[8px]">{r.from}</span>
+              <span className="truncate pr-[8px]">{r.to}</span>
+              <span className="truncate pr-[8px]" style={{ color: r.locked ? "#F95B1C" : c.textSec }} title={r.comment}>{r.comment}</span>
+              <span className="truncate pr-[8px]">{r.ext}</span>
+              <span>{r.qty}</span>
+              <span>{r.locked ? "—" : `+${r.extra} ₽`}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center justify-between shrink-0" style={{ marginTop: 20 }}>
+        <p className="text-[15px]" style={{ color: c.textSec }}>
+          Выбрано: <b style={{ color: c.textPrimary }}>{selected.length}</b> · Доплата: <b style={{ color: c.textPrimary }}>{total} ₽</b>
+        </p>
+        <div className="flex" style={{ gap: 12 }}>
+          <button onClick={() => selected.length > 0 && onConfirm(selected)} className={winGreen(selected.length > 0)} style={{ width: 200 }}>
+            OK<span className="absolute top-[4px] right-[10px] text-[9px] opacity-70">Enter</span>
+          </button>
+          <button onClick={onClose} className={winOutline(dark)} style={{ width: 200, color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+            Отмена<span className="absolute top-[4px] right-[10px] text-[9px] opacity-50" style={{ color: c.textSec }}>Esc</span>
+          </button>
+        </div>
+      </div>
+    </WinFrame>
+  );
+}
+
+// ── Журнал эквайринга ──
+interface AcqRow { id: number; date: string; time: string; op: string; rrn: string; card: string; sum: number; canceled?: boolean; }
+
+function buildAcqRows(): AcqRow[] {
+  const d = new Date();
+  const date = `${adPad(d.getDate())}.${adPad(d.getMonth() + 1)}.${d.getFullYear()}`;
+  return [
+    { id: 1, date, time: "10:12:05", op: "Оплата", rrn: "628512345671", card: "**** 4421", sum: 1400 },
+    { id: 2, date, time: "11:40:37", op: "Оплата", rrn: "628512345702", card: "**** 0187", sum: 800 },
+    { id: 3, date, time: "12:05:11", op: "Возврат", rrn: "628512345733", card: "**** 0187", sum: -250 },
+    { id: 4, date, time: "14:03:49", op: "Оплата", rrn: "628512345790", card: "**** 9930", sum: 350 },
+  ];
+}
+
+function AcquiringJournalWindow({ dark, onClose }: { dark: boolean; onClose: () => void }) {
+  const c = th(dark);
+  const [rows, setRows] = useState<AcqRow[]>(buildAcqRows);
+  const [picked, setPicked] = useState<string | null>(null);
+  const [comment, setComment] = useState("");
+  const [refreshedAt, setRefreshedAt] = useState<string | null>(null);
+  useEscape(onClose);
+  const active = rows.find((r) => String(r.id) === picked) ?? null;
+  const canCancel = !!active && active.op === "Оплата" && !active.canceled;
+
+  const cancelOp = () => {
+    if (!active || !canCancel) return;
+    const now = new Date();
+    setRows((prev) => [...prev.map((r) => (r.id === active.id ? { ...r, canceled: true } : r)),
+      { id: Math.max(...prev.map((r) => r.id)) + 1, date: active.date, time: `${adPad(now.getHours())}:${adPad(now.getMinutes())}:${adPad(now.getSeconds())}`,
+        op: `Отмена${comment.trim() ? ` (${comment.trim()})` : ""}`, rrn: active.rrn, card: active.card, sum: -active.sum }]);
+    setComment(""); setPicked(null);
+  };
+
+  return (
+    <WinFrame dark={dark} title="Журнал эквайринга" width={980} height={680} onClose={onClose}>
+      <div className="flex flex-col flex-1 min-h-0" style={{ marginTop: 20 }}>
+        <WinTable dark={dark} cols="1fr 0.9fr 1.4fr 1.3fr 1fr 0.8fr" headers={["Дата", "Время", "Операция", "RRN", "Карта", "Сумма"]}
+          rows={rows.map((r) => ({ key: String(r.id), cells: [r.date, r.time, r.canceled ? `${r.op} · отменена` : r.op, r.rrn, r.card, `${r.sum} ₽`] }))}
+          activeKey={picked} onRowClick={setPicked} empty="Операций за смену нет" />
+      </div>
+      <div className="flex shrink-0" style={{ gap: 12, marginTop: 16 }}>
+        <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Комментарий" aria-label="Комментарий"
+          className={`flex-1 ${winField(dark)}`} style={{ height: 56, backgroundColor: c.inputBg, color: c.textPrimary }} />
+        <button onClick={cancelOp} className={winOutline(dark)} disabled={!canCancel}
+          style={{ width: 240, color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465", opacity: canCancel ? 1 : 0.45, cursor: canCancel ? "pointer" : "default" }}>
+          Отменить операцию
+        </button>
+      </div>
+      <div className="flex items-center shrink-0" style={{ gap: 12, marginTop: 16 }}>
+        <p className="flex-1 text-[13px]" style={{ color: c.textSec }}>
+          {refreshedAt ? `Обновлено в ${refreshedAt}` : active && !canCancel ? "Эту операцию нельзя отменить" : "Выберите оплату, чтобы отменить её"}
+        </p>
+        <button onClick={() => { const d = new Date(); setRefreshedAt(`${adPad(d.getHours())}:${adPad(d.getMinutes())}:${adPad(d.getSeconds())}`); }}
+          className={winOutline(dark)} style={{ width: 180, color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>Обновить</button>
+        <button onClick={onClose} className={winGreen(true)} style={{ width: 180 }}>Закрыть</button>
+      </div>
+    </WinFrame>
+  );
+}
+
+// ── Внесение наличных / Инкассация ──
+const fmtMoney = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function CashAmountModal({ dark, kind, onClose, onDone }: { dark: boolean; kind: "deposit" | "collect"; onClose: () => void; onDone: (sum: number) => void }) {
+  const c = th(dark);
+  const [value, setValue] = useState("");
+  useEscape(onClose);
+  const sum = Number(value.replace(/\s/g, "").replace(",", ".")) || 0;
+  const title = kind === "deposit" ? "Введите сумму для внесения" : "Введите сумму для инкассации";
+  const submit = () => { if (sum > 0) onDone(Math.round(sum * 100) / 100); };
+  return (
+    <WinFrame dark={dark} title={title} width={596} onClose={onClose}>
+      <div className="flex items-center rounded-[10px] transition-shadow duration-150 focus-within:shadow-[inset_0_0_0_1.5px_#47d465]"
+        style={{ marginTop: 24, height: 64, padding: "0 18px", backgroundColor: c.inputBg }}>
+        <input autoFocus inputMode="decimal" value={value} aria-label={title} placeholder="0,00"
+          onChange={(e) => setValue(e.target.value.replace(/[^\d,.\s]/g, "").replace(".", ","))}
+          onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+          className="flex-1 min-w-0 bg-transparent text-right text-[24px] font-bold outline-none placeholder:opacity-35"
+          style={{ color: c.textPrimary, fontFeatureSettings: '"lnum","pnum"' }} />
+        <span className="text-[22px] font-bold" style={{ color: c.textSec, marginLeft: 8 }}>₽</span>
+      </div>
+      <div className="flex" style={{ gap: 8, marginTop: 12 }}>
+        {[1000, 5000, 10000].map((v) => (
+          <button key={v} onClick={() => setValue(String(v))}
+            className={`flex-1 h-[40px] rounded-[8px] text-[14px] font-semibold cursor-pointer select-none outline-none transition-all duration-150 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-[#47d465] ${dark ? "hover:bg-white/10 active:bg-white/15" : "hover:bg-black/5 active:bg-black/10"}`}
+            style={{ color: c.textPrimary, boxShadow: `inset 0 0 0 1px ${c.divider}` }}>{v.toLocaleString("ru-RU")} ₽</button>
+        ))}
+      </div>
+      <div className="flex" style={{ gap: 14, marginTop: 22 }}>
+        <button onClick={submit} className={`${winGreen(sum > 0)} flex-1`}>OK<span className="absolute top-[4px] right-[10px] text-[9px] opacity-70">Enter</span></button>
+        <button onClick={onClose} className={`${winOutline(dark)} flex-1`} style={{ color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+          Отмена<span className="absolute top-[4px] right-[10px] text-[9px] opacity-50" style={{ color: c.textSec }}>Esc</span>
+        </button>
+      </div>
+    </WinFrame>
+  );
+}
+
+// ── Report previews: shown as images, as-is ──
+const REPORT_IMAGES: Record<string, string> = {
+  "Итоговый отчет по продажам": reportSalesTotal,
+  "Сводный отчет по оплатам": reportPaymentsSummary,
+  "Детальный по прокату (выдача)": reportRentalTotal,
+  "Итоговый по прокату (выдача)": reportRentalTotal,
+};
+
+function ReportImageWindow({ dark, title, src, onClose }: { dark: boolean; title: string; src: string; onClose: () => void }) {
+  const c = th(dark);
+  useEscape(onClose);
+  return (
+    <WinFrame dark={dark} title={title} width={1300} height={940} onClose={onClose}>
+      <div className={`flex-1 min-h-0 rounded-[10px] ${RET_SCROLL}`} style={{ marginTop: 18, backgroundColor: "#e9ebee", boxShadow: `inset 0 0 0 1px ${c.divider}` }}>
+        <img src={src} alt={title} className="block w-full h-auto select-none" draggable={false} />
+      </div>
+      <div className="flex justify-end shrink-0" style={{ marginTop: 18 }}>
+        <button onClick={onClose} className={winOutline(dark)} style={{ width: 200, color: c.textPrimary, boxShadow: "inset 0 0 0 1.5px #47d465" }}>
+          Закрыть<span className="absolute top-[4px] right-[10px] text-[9px] opacity-50" style={{ color: c.textSec }}>Esc</span>
+        </button>
+      </div>
+    </WinFrame>
+  );
+}
+
 type PendingAdd = { kind: "add"; product: Product; qty: number } | { kind: "qtyModal"; product: Product };
 
 function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onLogout: () => void; requireRegistration: boolean }) {
@@ -5037,7 +5249,7 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
   const [qtyProduct, setQtyProduct]           = useState<Product | null>(null);
   const [menuOpen, setMenuOpen]               = useState(false);
   const [showAdmin, setShowAdmin]             = useState(false);
-  const [scanFor, setScanFor]                 = useState<"debts" | "returnCard" | "returnCarrier" | "pledgeTake" | "pledgeReturn" | "cardHistory" | "cardExtra" | "service" | "cardUnblock" | null>(null);
+  const [scanFor, setScanFor]                 = useState<"debts" | "returnCard" | "returnCarrier" | "pledgeTake" | "pledgeReturn" | "cardHistory" | "cardExtra" | "service" | "cardUnblock" | "extendTicket" | null>(null);
   const [extraFor, setExtraFor]               = useState<string | null>(null);
   const [servicePick, setServicePick]         = useState(false);
   const [serviceName, setServiceName]         = useState<string | null>(null);
@@ -5052,6 +5264,42 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
   const [showPreorders, setShowPreorders]     = useState(false);
   const [tillMenu, setTillMenu]               = useState(false);
   const [showMerge, setShowMerge]             = useState(false);
+  const [loading, setLoading]                 = useState(false);
+  const [shiftClosed, setShiftClosed]         = useState(false);
+  const [reportView, setReportView]           = useState<{ title: string; src: string } | null>(null);
+  const [showAcquiring, setShowAcquiring]     = useState(false);
+  const [cashKind, setCashKind]               = useState<"deposit" | "collect" | null>(null);
+  const [extendCard, setExtendCard]           = useState<string | null>(null);
+
+  // Fake 3-second operation with the spinning Lime logo, then the result.
+  const runLoading = (after: () => void) => {
+    setLoading(true);
+    window.setTimeout(() => { setLoading(false); after(); }, 3000);
+  };
+  const handleReport = (label: string) => {
+    if (REPORT_IMAGES[label]) { setReportView({ title: label, src: REPORT_IMAGES[label] }); return; }
+    switch (label) {
+      case "Z отчет":
+        runLoading(() => { setShiftClosed(true); setNotice({ title: "Z-отчёт напечатан", text: "Смена закрыта. Теперь можно открыть новую смену." }); });
+        break;
+      case "X отчет":
+        runLoading(() => setNotice({ title: "X-отчёт напечатан", text: "Промежуточный отчёт без закрытия смены." }));
+        break;
+      case "Сверка итогов":
+        runLoading(() => setNotice({ title: "Сверка итогов", text: "Отчёт о сверке итогов напечатан на банковском терминале." }));
+        break;
+      case "Печать":
+        runLoading(() => setNotice({ title: "Чек напечатан", text: "Чек реализации услуг за выбранный период отправлен на печать." }));
+        break;
+      case "Открыть смену":
+        setShiftClosed(false);
+        setNotice({ title: "Смена открыта", text: "Новая смена открыта, можно продавать." });
+        break;
+      case "Журнал эквайринга": setShowAcquiring(true); break;
+      case "Внесение наличных": setCashKind("deposit"); break;
+      case "Инкассация": setCashKind("collect"); break;
+    }
+  };
   const [returnWin, setReturnWin]             = useState<{ mode: "card"; card: string } | { mode: "check" } | null>(null);
   const [notice, setNotice]                   = useState<{ title: string; text: string; copyValue?: string } | null>(null);
   useEffect(() => { if (!adminMode) setShowAdmin(false); }, [adminMode]);
@@ -5163,6 +5411,9 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
       if (blockedCards.has(card)) { setNotice({ title: "Проход запрещён", text: "Карта заблокирована.", copyValue: card }); return; }
       if (!cardHasData(card)) { setNotice({ title: "Проход запрещён", text: `Недостаточно средств на карте для услуги «${svc.name}».`, copyValue: card }); return; }
       setNotice({ title: "Проход разрешён", text: `Услуга: ${svc.name}. Списано за проход: ${svc.price} ₽. Остаток на карте: ${1400 - svc.price} ₽.` });
+    } else if (purpose === "extendTicket") {
+      if (!cardHasData(card)) { setNotice({ title: "Нет билетов для расширения", text: "На этой карте нет билетов, которые можно расширить.", copyValue: card }); return; }
+      setExtendCard(card);
     } else if (purpose === "cardUnblock") {
       if (!blockedCards.has(card)) { setNotice({ title: "Карта не заблокирована", text: "Эта карта активна, разблокировка не требуется.", copyValue: card }); return; }
       setBlockedCards((prev) => { const n = new Set(prev); n.delete(card); return n; });
@@ -5203,16 +5454,30 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
         <MergeAccountsWindow dark={effectiveDark} onClose={() => setShowMerge(false)}
           onMerged={(l, r) => { setShowMerge(false); setNotice({ title: "Счета объединены", text: `Счёт клиента ${r.name} присоединён к счёту ${l.name}.` }); }} />
       )}
+      {extendCard && (
+        <ExtendTicketWindow dark={effectiveDark} card={extendCard} onClose={() => setExtendCard(null)}
+          onConfirm={(rows) => {
+            setExtendCard(null);
+            setCartItems((prev) => [...prev, ...rows.flatMap((r) => Array.from({ length: r.qty }, () => ({ id: nextCartId++, productId: 0, name: `Расширение: ${r.name} → ${r.ext}`, price: r.extra, card: extendCard })))]);
+          }} />
+      )}
+      {showAcquiring && <AcquiringJournalWindow dark={effectiveDark} onClose={() => setShowAcquiring(false)} />}
+      {cashKind && (
+        <CashAmountModal dark={effectiveDark} kind={cashKind} onClose={() => setCashKind(null)}
+          onDone={(sum) => { const k = cashKind; setCashKind(null); setNotice({ title: k === "deposit" ? "Внесение выполнено" : "Инкассация выполнена", text: `Сумма: ${fmtMoney(sum)} ₽` }); }} />
+      )}
+      {reportView && <ReportImageWindow dark={effectiveDark} title={reportView.title} src={reportView.src} onClose={() => setReportView(null)} />}
+      {loading && <LoadingOverlay dark={effectiveDark} />}
       {tillMenu && (
-        <TillActionsFlyout dark={effectiveDark} adminMode={adminMode} onClose={() => setTillMenu(false)}
-          onAction={(a) => { setTillMenu(false); setNotice({ title: a.title, text: a.text }); }} />
+        <TillActionsFlyout dark={effectiveDark} adminMode={adminMode} canOpenShift={shiftClosed} onClose={() => setTillMenu(false)}
+          onAction={(a) => { setTillMenu(false); if (a.label === "Сверка итогов" || a.label === "Открыть смену") handleReport(a.label); else setNotice({ title: a.title, text: a.text }); }} />
       )}
       {showPreorders && (
         <PreorderScreen dark={effectiveDark} onClose={() => setShowPreorders(false)}
           onAddToSale={(items) => setCartItems((prev) => [...prev, ...items.flatMap((i) => Array.from({ length: i.qty }, () => ({ id: nextCartId++, productId: 0, name: i.name, price: i.price })))])} />
       )}
       {showAdmin && adminMode && (
-        <AdminScreen onClose={() => setShowAdmin(false)} onClientInfo={() => setShowCardScan(true)} />
+        <AdminScreen onClose={() => setShowAdmin(false)} onClientInfo={() => setShowCardScan(true)} onReport={handleReport} canOpenShift={shiftClosed} />
       )}
 
       {qtyProduct && (
@@ -5291,7 +5556,7 @@ function PosScreen({ dark, onLogout, requireRegistration }: { dark: boolean; onL
       )}
       {scanFor && (
         <CardScanModal
-          title={({ debts: "Считайте карту для гашения долгов", returnCarrier: "Считайте карту для возврата носителя", returnCard: "Считайте карту для возврата", pledgeTake: "Считайте карту для залога", pledgeReturn: "Считайте карту для возврата залога", cardHistory: "Считайте карту", cardExtra: "Считайте дополнительную карту", service: "Считайте карту для прохода", cardUnblock: "Считайте карту для разблокировки" } as const)[scanFor]}
+          title={({ debts: "Считайте карту для гашения долгов", returnCarrier: "Считайте карту для возврата носителя", returnCard: "Считайте карту для возврата", pledgeTake: "Считайте карту для залога", pledgeReturn: "Считайте карту для возврата залога", cardHistory: "Считайте карту", cardExtra: "Считайте дополнительную карту", service: "Считайте карту для прохода", cardUnblock: "Считайте карту для разблокировки", extendTicket: "Считайте карту для расширения билета" } as const)[scanFor]}
           onClose={() => setScanFor(null)}
           onSuccess={handleScanned}
         />
