@@ -12,6 +12,7 @@ import svgClientInfo from "@/imports/СРегистрацией/svg-3jfmc2efvu";
 import reportSalesTotal from "@/assets/reports/sales-total.png";
 import reportPaymentsSummary from "@/assets/reports/payments-summary.png";
 import reportRentalTotal from "@/assets/reports/rental-total.png";
+import reportRentalDetail from "@/assets/reports/rental-detail.png";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -5213,7 +5214,7 @@ function CashAmountModal({ dark, kind, onClose, onDone }: { dark: boolean; kind:
 const REPORT_IMAGES: Record<string, string> = {
   "Итоговый отчет по продажам": reportSalesTotal,
   "Сводный отчет по оплатам": reportPaymentsSummary,
-  "Детальный по прокату (выдача)": reportRentalTotal,
+  "Детальный по прокату (выдача)": reportRentalDetail,
   "Итоговый по прокату (выдача)": reportRentalTotal,
 };
 
